@@ -1,0 +1,41 @@
+---
+title: Deployment
+description: How this documentation site is built and published to GitHub Pages.
+---
+
+The docs package lives in `packages/docs` and is deployed with GitHub Actions.
+
+## Local commands
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm --filter @threejs-debug-compose/docs dev
+pnpm --filter @threejs-debug-compose/docs build
+```
+
+For package and docs confidence in one local pass:
+
+```bash
+pnpm verify
+```
+
+For runtime-facing WebGPU changes, also smoke-test the Vite demo in a browser with WebGPU support:
+
+```bash
+pnpm dev
+```
+
+## GitHub Pages
+
+The Astro config uses the repository Pages URL:
+
+```ts
+export default defineConfig({
+  site: "https://tonyblu331.github.io",
+  base: "/threejs-debug-compose",
+})
+```
+
+The workflow at `.github/workflows/quality.yml` validates package and docs builds on pull requests and master pushes. The workflow at `.github/workflows/deploy-docs.yml` builds the live demo, builds `packages/docs`, and deploys the generated site with GitHub Pages.

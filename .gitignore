@@ -1,6 +1,10 @@
 node_modules/
 dist/
+/img/
 *.local
 .env
 .env.*
 *.log
+.astro/
+packages/docs/.astro/
+packages/docs/dist/

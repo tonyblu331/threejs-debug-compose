@@ -1,0 +1,39 @@
+---
+title: Custom Debug Views
+description: Add shader-specific TSL node views with stable render-graph identity.
+---
+
+For simple shader debugging, provide a custom TSL node directly.
+
+```tsx
+import { float, vec4 } from "three/tsl"
+
+{ label: "Constant", node: float(0.5), mode: "depth", scale: 1 }
+{ label: "Custom Color", node: vec4(1, 0, 0, 1), mode: "passthrough" }
+```
+
+When React may recreate the node instance between renders, prefer `createCustomDebugView()` with a stable `id`.
+
+```tsx
+import { float, vec4 } from "three/tsl"
+import {
+  createCustomDebugView,
+  DEFAULT_DEBUG_VIEWS,
+} from "threejs-debug-compose"
+import { DebugViews } from "threejs-debug-compose/react"
+
+const fresnelView = createCustomDebugView({
+  id: "shader:fresnel",
+  label: "Fresnel",
+  node: vec4(float(1), float(0), float(0), float(1)),
+})
+
+<DebugViews views={[...DEFAULT_DEBUG_VIEWS, fresnelView]} />
+```
+
+The viewport render graph uses the stable `id` to dedupe equivalent custom node views.
+
+:::caution
+Do not force every shader debugging need into `node`.
+If the debug output needs its own render target, material override, camera, or disposal lifecycle, model it as a dedicated pass-backed view instead.
+:::

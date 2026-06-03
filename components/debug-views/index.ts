@@ -1,20 +1,63 @@
-// TSL Nodes — use these to build custom debug pipelines
 export {
-  visualizeGrayscale,
-  visualizeNormal,
-  visualizePosition,
-  visualizeUV,
-  visualizeAO,
-  visualizeHeatmap,
-  visualizeSplit,
-  visualizeOverlay,
-  visualizeDepth,
-  visualizeCheckerboard,
-  visualizeValue,
-  visualizeChannels,
-} from "./debug-views-tsl/visualize"
+  DEFAULT_DEBUG_VIEWS,
+  MATERIAL_DEBUG_VIEW_SOURCES,
+  getDebugViewLabels,
+} from "./debug-view-definitions"
+export {
+  createCustomDebugView,
+  type CustomDebugNodeViewOptions,
+} from "./custom-debug-view"
 
-export { createCompositorNode, type DebugChannel, type CompositorConfig, type VisualizationType } from "./debug-views-tsl/compositor"
+export {
+  isResolvedDebugViewLayout,
+  LAYOUT_INDEX,
+  resolveDebugViewLayout,
+  type DebugViewLayout,
+  type DebugViewLayoutConfig,
+  type DebugViewLayoutOptions,
+  type LayoutMode,
+  type LayoutPresentation,
+  type ResolvedDebugViewLayout,
+} from "./debug-view-layout"
+
+export {
+  createDebugViewportPlan,
+  type DebugViewportCell,
+  type DebugViewportPlan,
+  type DebugViewportPlanOptions,
+  type DebugViewportResolutionScale,
+  type DebugViewportView,
+  type DebugViewsMode,
+} from "./debug-viewport-plan"
+export {
+  createDebugViewportRenderGraphPlan,
+  type DebugViewportRenderGraphCell,
+  type DebugViewportRenderGraphPlan,
+  type DebugViewportRenderPassPlan,
+} from "./debug-render-graph-plan"
+
+export {
+  createDebugViewportRects,
+  type DebugViewportCssCell,
+  type DebugViewportNormalizedRect,
+  type DebugViewportRect,
+} from "./debug-viewport-presenter"
+
+export {
+  createDebugViewportLabels,
+  createDebugViewportPlanLabels,
+  type DebugViewportLabel,
+  type DebugViewportLabelFormatter,
+  type DebugViewportLabels,
+} from "./debug-viewport-labels"
+
+export {
+  createViewCompositor,
+  type DebugView,
+  type DebugViewSource,
+  type ViewCompositorConfig,
+  type ViewMode,
+} from "./debug-views-tsl/compositor"
 
 export {
   createDebugViewUniforms,
@@ -22,13 +65,17 @@ export {
   type DebugViewUniforms,
 } from "./debug-views-tsl/uniforms"
 
-export type { FloatNode, Vec2Node, Vec3Node, Vec4Node } from "./debug-views-tsl/node-types"
+export {
+  visualizeDepth,
+  visualizeGrayscale,
+  visualizeHeatmap,
+  visualizeNormal,
+} from "./debug-views-tsl/visualize"
 
-// Scene Pass Helper — extracts color, depth, normal, position from a scene
-export { createScenePass, type ScenePassData } from "./debug-views-tsl/scene-pass"
-
-// R3F Component — drop-in for React Three Fiber scenes
-export { DebugViews, type DebugViewsProps } from "./debug-views-post"
-
-// Leva Controls — interactive GUI for debugging
-export { useDebugViewsControls } from "./use-debug-views-controls"
+export type {
+  DebugNode,
+  FloatNode,
+  Vec2Node,
+  Vec3Node,
+  Vec4Node,
+} from "./debug-views-tsl/node-types"

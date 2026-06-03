@@ -1,0 +1,109 @@
+---
+title: Built-in Views
+description: Understand the default debug sources, when each pass runs, and try the live Three.js demo.
+---
+
+The built-in views are the default diagnostics exported by `DEFAULT_DEBUG_VIEWS`.
+Each view is a small render source: the UI chooses a view, the render plan resolves only the required passes, and the compositor presents the result.
+
+## Live demo
+
+Use the controls in the top-right panel to switch `activeView`, change layouts, and compare diagnostics.
+The scene includes the Damaged Helmet model plus material samples for the estimated shader-complexity heatmap.
+
+[Open the Three.js demo in a new tab](/threejs-debug-compose/demo/)
+
+<iframe
+  src="/threejs-debug-compose/demo/"
+  title="threejs-debug-compose live demo"
+  loading="lazy"
+  style={{
+    border: "1px solid var(--sl-color-gray-5)",
+    borderRadius: "0.75rem",
+    height: "min(72vh, 720px)",
+    minHeight: "520px",
+    width: "100%",
+  }}
+/>
+
+:::note
+The demo needs browser WebGPU support. When native WebGPU is unavailable, the app reports the active fallback backend in the bottom-left badge.
+:::
+
+## Scene buffers
+
+| Source | Mode | Output | Use it to check |
+| --- | --- | --- | --- |
+| `beauty` | `passthrough` | Final scene color. | Baseline rendering. |
+| `normal` | `passthrough` | View-space geometry normals. | Model orientation, hard edges, and geometry normals. |
+| `depth` | `depth` | Pass depth converted to view-space distance. | Camera depth, clipping, and depth precision. |
+
+## Material buffers
+
+| Source | Mode | Output | Use it to check |
+| --- | --- | --- | --- |
+| `albedo` / `baseColor` | `passthrough` | Base color without lighting. | Texture color and material authoring. |
+| `materialNormal` / `normalMap` | `passthrough` | Material-perturbed normal output. | Normal maps and tangent-space detail. |
+| `emissive` | `passthrough` | Material emissive color. | Emissive contribution independent of lighting. |
+
+## Packed scalar buffers
+
+| Source | Channel | Output | Use it to check |
+| --- | --- | --- | --- |
+| `roughness` | `R` | Packed roughness scalar. | Overly glossy or rough materials. |
+| `metallic` / `metalness` | `G` | Packed metallic scalar. | Metalness maps and PBR setup. |
+| `ao` | `B` | Packed ambient occlusion scalar. | AO map contribution. |
+| `opacity` / `transparency` | `A` | Packed opacity or inverse opacity. | Transparent or cutout surfaces. |
+
+Scalar material data is packed into one RGBA target instead of allocating one render target per scalar view.
+That keeps the composer under common WebGPU color attachment limits.
+
+## Override passes
+
+| Source | Mode | Output | Cost model |
+| --- | --- | --- | --- |
+| `wireframe` | `passthrough` | White wireframe override material. | Renders only when selected or visible in a layout. |
+| `lightingOnly` | `passthrough` | Neutral non-metal material override. | Renders only when selected or visible in a layout. |
+| `reflectionOnly` | `passthrough` | Reflective neutral material override. | Renders only when selected or visible in a layout. |
+| `shaderCost` | `heatmap` | Estimated shader-complexity heatmap from bucketed override materials. | Renders only when selected or visible in a layout. |
+
+Demand-driven override passes add another scene render only when the selected layout or viewport plan actually needs that source.
+
+:::caution
+`shaderCost` is an estimated shader-complexity view, not a browser-exposed shader instruction counter. Use it to find likely expensive programs/materials, then validate timing with real profiling tools.
+:::
+
+## Compose example
+
+```tsx
+import { DEFAULT_DEBUG_VIEWS } from "threejs-debug-compose"
+import { DebugViews } from "threejs-debug-compose/react"
+
+<DebugViews
+  views={DEFAULT_DEBUG_VIEWS}
+  activeView={0}
+  layout="quad"
+  slots={4}
+  showLabels
+/>
+```
+
+## Viewport example
+
+Use viewport mode when panes must keep fixed assignments.
+
+```tsx
+<DebugViews
+  mode="viewport"
+  views={DEFAULT_DEBUG_VIEWS}
+  viewportViews={[
+    { view: "beauty", label: "Beauty" },
+    { view: "normal", label: "Normals" },
+    { view: "roughness", label: "Roughness", resolutionScale: 0.5 },
+    { view: "shaderCost", label: "Estimated Shader Complexity", resolutionScale: 0.5 },
+  ]}
+  layout="quad"
+  slots={4}
+  showLabels
+/>
+```

@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "outDir": "dist/types",
+    "rootDir": "components/debug-views",
+    "types": ["react", "vite/client"]
+  },
+  "include": ["components/debug-views"],
+  "exclude": [
+    "components/**/*.test.ts",
+    "components/**/*.test.tsx",
+    "dist",
+    "node_modules"
+  ]
+}

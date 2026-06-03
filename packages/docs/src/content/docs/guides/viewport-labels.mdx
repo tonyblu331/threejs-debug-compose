@@ -1,0 +1,33 @@
+---
+title: Viewport Labels
+description: Label panes in split, row, column, grid, and explicit viewport layouts.
+---
+
+Enable labels with `showLabels`.
+
+```tsx
+<DebugViews
+  views={views}
+  layout="row"
+  slots={4}
+  showLabels
+  viewportLabels={["Beauty", "Normals", "Depth", "Albedo"]}
+/>
+```
+
+In viewport mode, labels follow the explicit `viewportViews` plan:
+
+```tsx
+<DebugViews
+  mode="viewport"
+  views={views}
+  viewportViews={[
+    { view: "beauty", label: "Reference" },
+    { view: "normal", label: "Geometry normals" },
+  ]}
+  layout={{ mode: "row", slots: 2 }}
+  showLabels
+/>
+```
+
+You can also pass a formatter function when labels need to be generated from the view and viewport index.

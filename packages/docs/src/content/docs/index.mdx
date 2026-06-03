@@ -1,0 +1,33 @@
+---
+title: threejs-debug-compose
+description: Composable TSL debug views for Three.js WebGPU render pipelines.
+template: splash
+hero:
+  tagline: Build, compose, and inspect WebGPU debug views without turning your renderer into spaghetti.
+  actions:
+    - text: Quick Start
+      link: /threejs-debug-compose/guides/quick-start/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/tonyblu331/threejs-debug-compose
+      icon: external
+---
+
+`threejs-debug-compose` provides composable debug views for Three.js WebGPU render pipelines.
+It renders scene outputs into compact MRT passes, exposes material and geometry channels, and presents them through either a fullscreen compositor or explicit viewport panes.
+
+## Why it exists
+
+Debugging shaders and materials gets painful when every new view becomes another one-off render branch.
+This package keeps the architecture boring:
+
+- **Built-in sources** for beauty, normals, depth, albedo, roughness, AO, opacity, emissive, wireframe, and lighting-only output.
+- **Composed layouts** for single, overlay, split, row, column, and grid presentations.
+- **Viewport mode** for explicit pane assignments, labels, per-pane cameras, and predictable resolution scaling.
+- **Custom TSL node views** for shader-specific inspection without forking the built-in source list.
+
+## Core idea
+
+The compositor should not care where a debug value came from. Built-in sources, custom TSL nodes, and future pass-backed views all resolve to nodes before presentation.
+That keeps the debug UI flexible without polluting the render pipeline with random special cases.
+

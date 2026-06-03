@@ -1,0 +1,49 @@
+---
+title: Render Modes
+description: Choose between composed layouts and explicit viewport rendering.
+---
+
+`DebugViews` supports two public modes.
+
+## `compose`
+
+`compose` is the default mode. It renders the selected debug sources and uses one fullscreen TSL compositor for presentation.
+Use it for cheap switching, overlays, and simple layout inspection.
+
+Supported layouts:
+
+- `single`
+- `overlay`
+- `split-h`
+- `split-v`
+- `quad`
+- `row`
+- `column`
+- `grid`
+
+```tsx
+<DebugViews views={views} layout="row" slots={4} />
+```
+
+## `viewport`
+
+`viewport` mode assigns views directly to renderer viewport/scissor panes.
+Use it when callers need stable pane assignment, labels, per-pane cameras, or resolution policy.
+
+```tsx
+<DebugViews
+  mode="viewport"
+  views={views}
+  viewportViews={[
+    { view: "beauty", label: "Beauty" },
+    { view: "lightingOnly", label: "Lighting" },
+    { view: "normal", label: "Normals", resolutionScale: 0.5 },
+    { view: "roughness", label: "Roughness", resolutionScale: 0.5 },
+  ]}
+  layout="row"
+  slots={4}
+  showLabels
+/>
+```
+
+`resolutionScale` is quantized to `1`, `0.5`, or `0.25` so render targets can be reused predictably instead of producing one-off VRAM allocations.

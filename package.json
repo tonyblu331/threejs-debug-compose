@@ -1,28 +1,103 @@
 {
   "name": "threejs-debug-compose",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.1",
+  "description": "Composable TSL debug views for Three.js WebGPU render pipelines.",
+  "license": "MIT",
   "type": "module",
-  "scripts": {
-    "dev": "C:\\Progra~1\\nodejs\\node.exe ./node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000",
-    "preview": "C:\\Progra~1\\nodejs\\node.exe ./node_modules/vite/bin/vite.js preview --host 0.0.0.0 --port 3000",
-    "typecheck": "C:\\Progra~1\\nodejs\\node.exe ./node_modules/typescript/bin/tsc --noEmit"
+  "packageManager": "pnpm@10.24.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/types/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./package.json": "./package.json"
   },
-  "dependencies": {
-    "@react-three/drei": "10.7.7",
-    "@react-three/fiber": "9.6.1",
-    "leva": "0.10.1",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "three": "0.184.0"
+  "files": [
+    "dist",
+    "assets/readme-compose-banner.png",
+    "assets/viewport-compose-quad.png",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "build": "pnpm build:lib && pnpm build:types",
+    "build:lib": "vite build",
+    "build:types": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm docs:build",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build",
+    "docs:dev": "pnpm --filter @threejs-debug-compose/docs dev",
+    "docs:build": "pnpm --filter @threejs-debug-compose/docs build",
+    "docs:preview": "pnpm --filter @threejs-debug-compose/docs preview"
+  },
+  "peerDependencies": {
+    "@react-three/drei": ">=10",
+    "@react-three/fiber": ">=9",
+    "leva": ">=0.10",
+    "react": ">=19",
+    "react-dom": ">=19",
+    "three": ">=0.184"
+  },
+  "peerDependenciesMeta": {
+    "@react-three/drei": {
+      "optional": true
+    },
+    "@react-three/fiber": {
+      "optional": true
+    },
+    "leva": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@react-three/drei": "10.7.7",
+    "@react-three/fiber": "9.6.1",
     "@types/node": "25.9.1",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@types/three": "0.184.1",
     "@vitejs/plugin-react": "6.0.2",
+    "leva": "0.10.1",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "three": "0.184.0",
     "typescript": "6.0.3",
-    "vite": "8.0.14"
+    "vite": "8.0.14",
+    "vitest": "^4.1.7"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tonyblu331/threejs-debug-compose.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tonyblu331/threejs-debug-compose/issues"
+  },
+  "homepage": "https://github.com/tonyblu331/threejs-debug-compose#readme",
+  "keywords": [
+    "threejs",
+    "webgpu",
+    "tsl",
+    "debug",
+    "rendering"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

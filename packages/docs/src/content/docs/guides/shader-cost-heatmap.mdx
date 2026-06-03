@@ -1,0 +1,71 @@
+---
+title: Estimated Shader Complexity Heatmap
+description: Use the shader-complexity view to spot expensive program/material signals without treating it as a GPU profiler.
+---
+
+The `shaderCost` view renders the scene with temporary bucketed override materials, then colorizes the result as a heatmap.
+Use it to find programs/materials that are likely more complex than their neighbors before you reach for a dedicated GPU profiler.
+
+```tsx
+import { DEFAULT_DEBUG_VIEWS } from "threejs-debug-compose"
+import { DebugViews } from "threejs-debug-compose/react"
+
+<DebugViews
+  views={DEFAULT_DEBUG_VIEWS}
+  activeView="shaderCost"
+  layout="single"
+/>
+```
+
+## Reading the colors
+
+The heatmap is normalized from `0` to `1`:
+
+- Black: no cost signal.
+- Green: cheaper materials.
+- Yellow: moderate cost.
+- Red: high cost.
+- White: extreme end of the configured scale.
+
+:::caution
+`shaderCost` is an estimate. Browsers do not expose portable shader instruction counts through this API, so the view infers complexity from program/material signals instead of reporting measured GPU time.
+:::
+
+## What increases complexity
+
+The scorer infers active program/material signals that commonly produce heavier shader paths:
+
+- material/program type
+- active texture slots and sampler state
+- transparency and alpha testing
+- physical features such as transmission, clearcoat, sheen, and iridescence
+- raw `ShaderMaterial` source signals, including active `defines` branches
+- generated TSL/WGSL shader-source signals when available in future versions
+
+The raw signal count is normalized against a stable global signal scale and mapped into a bounded bucket material set.
+That keeps the override pass predictable instead of creating one material per mesh.
+
+## Viewport mode
+
+`shaderCost` can also be assigned to a viewport pane:
+
+```tsx
+<DebugViews
+  mode="viewport"
+  views={DEFAULT_DEBUG_VIEWS}
+  viewportViews={[
+    { view: "beauty", label: "Beauty" },
+    { view: "shaderCost", label: "Estimated Shader Complexity", resolutionScale: 0.5 },
+  ]}
+  layout="split-h"
+  slots={2}
+  showLabels
+/>
+```
+
+Use a lower `resolutionScale` when the heatmap is a diagnostic companion rather than the primary view.
+
+## Limits
+
+The view answers “which visible programs/materials look more complex?” It does not answer “how many milliseconds did this draw cost?”
+For timing, validate with browser GPU tooling, renderer stats, or a frame profiler.

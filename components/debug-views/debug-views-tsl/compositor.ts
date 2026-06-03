@@ -1,152 +1,187 @@
-import { float, mix, vec2, vec4, viewportUV } from "three/tsl"
-import type { FloatNode, Vec2Node, Vec4Node } from "./node-types"
+import { float, vec4, screenUV, mix } from "three/tsl"
+import type { DebugNode, FloatNode, Vec4Node } from "./node-types"
 import type { DebugViewUniforms } from "./uniforms"
+import { visualizeDepth, visualizeHeatmap, visualizeNormal } from "./visualize"
 import {
-  visualizeGrayscale,
-  visualizeNormal,
-  visualizePosition,
-  visualizeUV,
-  visualizeAO,
-  visualizeHeatmap,
-  visualizeDepth,
-  visualizeValue,
-} from "./visualize"
+  isResolvedDebugViewLayout,
+  LAYOUT_INDEX,
+  resolveDebugViewLayout,
+  type DebugViewLayout,
+  type ResolvedDebugViewLayout,
+} from "../debug-view-layout"
 
-export type VisualizationType =
-  | "grayscale"
+export type ViewMode = "passthrough" | "normal" | "depth" | "heatmap"
+export type DebugViewSource =
+  | "beauty"
   | "normal"
-  | "position"
-  | "uv"
-  | "ao"
-  | "heatmap"
+  | "materialNormal"
+  | "normalMap"
   | "depth"
-  | "value"
-  | "passthrough"
+  | "albedo"
+  | "baseColor"
+  | "roughness"
+  | "metalness"
+  | "metallic"
+  | "opacity"
+  | "transparency"
+  | "ao"
+  | "emissive"
+  | "wireframe"
+  | "lightingOnly"
+  | "reflectionOnly"
+  | "shaderCost"
 
-export interface DebugChannel {
-  node: any
-  visualization: VisualizationType
-  label?: string
+export interface DebugView {
+  id?: string
+  label: string
+  node?: DebugNode
+  mode?: ViewMode
+  source?: DebugViewSource
   scale?: number
   bias?: number
 }
 
-export interface CompositorConfig {
-  channels: DebugChannel[]
-  layout?: "single" | "split-h" | "split-v" | "quad" | "overlay"
+export interface ViewCompositorConfig {
+  views: DebugView[]
   uniforms: DebugViewUniforms
+  layout?: DebugViewLayout | ResolvedDebugViewLayout
 }
 
-function applyVisualization(channel: DebugChannel): Vec4Node {
-  const { node, visualization, scale, bias } = channel
-  const s = scale !== undefined ? float(scale) : undefined
-  const b = bias !== undefined ? float(bias) : undefined
+export function createViewCompositor(config: ViewCompositorConfig): Vec4Node {
+  const { views, uniforms, layout } = config
+  const count = views.length
 
-  switch (visualization) {
-    case "grayscale":
-      return visualizeGrayscale(node, s, b)
-    case "normal":
-      return visualizeNormal(node)
-    case "position":
-      return visualizePosition(node, s)
-    case "uv":
-      return visualizeUV(node)
-    case "ao":
-      return visualizeAO(node)
-    case "heatmap":
-      return visualizeHeatmap(node, s, b)
-    case "depth":
-      return visualizeDepth(node, s, b)
-    case "value":
-      return visualizeValue(node)
-    case "passthrough":
-    default:
-      return node
+  if (count === 0) return vec4(0, 0, 0, 1)
+
+  const visualized = views.map((v) => applyMode(v))
+
+  if (layout) {
+    return selectLayout(layout, visualized, uniforms)
+  }
+
+  const single  = selectSingle(visualized, uniforms.activeView)
+  const overlay = blendOverlay(visualized, uniforms.overlayOpacity)
+  const splitH  = selectByGrid(visualized, uniforms.viewCount, 2, 1)
+  const splitV  = selectByGrid(visualized, uniforms.viewCount, 1, 2)
+  const quad    = selectByGrid(visualized, uniforms.viewCount, 2, 2)
+  const grid    = selectByGrid(
+    visualized,
+    uniforms.viewCount,
+    uniforms.gridColumns,
+    uniforms.gridRows,
+  )
+
+  const isSingle  = uniforms.layout.equal(float(LAYOUT_INDEX.single))
+  const isOverlay = uniforms.layout.equal(float(LAYOUT_INDEX.overlay))
+  const isSplitH  = uniforms.layout.equal(float(LAYOUT_INDEX["split-h"]))
+  const isSplitV  = uniforms.layout.equal(float(LAYOUT_INDEX["split-v"]))
+  const isQuad    = uniforms.layout.equal(float(LAYOUT_INDEX.quad))
+
+  return isSingle.select(single,
+         isOverlay.select(overlay,
+         isSplitH.select(splitH,
+         isSplitV.select(splitV,
+         isQuad.select(quad,
+         grid)))))
+}
+
+function selectLayout(
+  layout: DebugViewLayout | ResolvedDebugViewLayout,
+  views: Vec4Node[],
+  uniforms: DebugViewUniforms,
+): Vec4Node {
+  const resolvedLayout = isResolvedDebugViewLayout(layout) ? layout : resolveDebugViewLayout(layout)
+
+  switch (resolvedLayout.presentation) {
+    case "single":
+      return selectSingle(views, uniforms.activeView)
+    case "overlay":
+      return blendOverlay(views, uniforms.overlayOpacity)
+    case "grid":
+      return selectByGrid(views, uniforms.viewCount, resolvedLayout.columns, resolvedLayout.rows)
   }
 }
 
-function splitHorizontal(
-  left: Vec4Node,
-  right: Vec4Node,
-  splitPos: FloatNode,
-  uv: Vec2Node,
-): Vec4Node {
-  return uv.x.lessThan(splitPos).select(left, right)
+function selectSingle(views: Vec4Node[], activeView: DebugViewUniforms["activeView"]): Vec4Node {
+  let result = views[0]
+  for (let i = 1; i < views.length; i++) {
+    result = activeView.greaterThan(float(i - 0.5)).select(views[i], result)
+  }
+  return result
 }
 
-function splitVertical(
-  top: Vec4Node,
-  bottom: Vec4Node,
-  splitPos: FloatNode,
-  uv: Vec2Node,
-): Vec4Node {
-  return uv.y.lessThan(splitPos).select(top, bottom)
+function blendOverlay(views: Vec4Node[], opacity: DebugViewUniforms["overlayOpacity"]): Vec4Node {
+  if (views.length === 1) return views[0]
+
+  let result = views[0]
+  for (let i = 1; i < views.length; i++) {
+    result = mix(result, views[i], opacity)
+  }
+  return result
 }
 
-function quadLayout(
-  tl: Vec4Node,
-  tr: Vec4Node,
-  bl: Vec4Node,
-  br: Vec4Node,
-  uv: Vec2Node,
+function selectByGrid(
+  views: Vec4Node[],
+  viewCount: DebugViewUniforms["viewCount"],
+  cols: GridAxis,
+  rows: GridAxis,
 ): Vec4Node {
-  const half = float(0.5)
-  const isLeft = uv.x.lessThan(half)
-  const isTop = uv.y.greaterThan(half)
+  const uv = screenUV
+  const fCols = toGridAxisNode(cols)
+  const fRows = toGridAxisNode(rows)
 
-  return isTop.select(
-    isLeft.select(tl, tr),
-    isLeft.select(bl, br),
-  )
+  const col = uv.x.mul(fCols).floor()
+  const row = fRows.sub(float(1)).sub(uv.y.mul(fRows).floor())
+  const cellIdx = row.mul(fCols).add(col)
+
+  const lineWidth = float(0.003)
+  const edgeX = uv.x.mul(fCols).fract()
+  const edgeY = uv.y.mul(fRows).fract()
+  const isGridLine = edgeX.lessThan(lineWidth)
+    .or(edgeY.lessThan(lineWidth))
+
+  let result: Vec4Node = views[0]
+  for (let i = 1; i < views.length; i++) {
+    result = cellIdx.equal(float(i)).select(views[i], result)
+  }
+
+  result = cellIdx.greaterThanEqual(viewCount).select(views[0], result)
+
+  result = isGridLine.select(vec4(0.12, 0.12, 0.12, 1), result)
+
+  return result
 }
 
-export function createCompositorNode(config: CompositorConfig): Vec4Node {
-  const { channels, layout = "single", uniforms } = config
-  const uv = viewportUV
+type GridAxis = number | DebugViewUniforms["gridColumns"] | DebugViewUniforms["gridRows"]
 
-  if (channels.length === 0) {
+function toGridAxisNode(value: GridAxis) {
+  return typeof value === "number" ? float(value) : value
+}
+
+function applyMode(view: DebugView): Vec4Node {
+  const { node, mode = "passthrough", scale, bias } = view
+
+  if (!node) {
     return vec4(0, 0, 0, 1)
   }
 
-  const visualized = channels.map(applyVisualization)
-
-  switch (layout) {
-    case "single": {
-      const idx = uniforms.activeChannel
-      let result = visualized[0]
-      for (let i = 1; i < visualized.length; i++) {
-        result = idx.greaterThan(float(i - 0.5)).select(visualized[i], result)
-      }
-      return result
-    }
-
-    case "split-h": {
-      const left = visualized[0] ?? vec4(0, 0, 0, 1)
-      const right = visualized[1] ?? visualized[0] ?? vec4(0, 0, 0, 1)
-      return splitHorizontal(left, right, uniforms.splitPosition, uv)
-    }
-
-    case "split-v": {
-      const top = visualized[0] ?? vec4(0, 0, 0, 1)
-      const bottom = visualized[1] ?? visualized[0] ?? vec4(0, 0, 0, 1)
-      return splitVertical(top, bottom, uniforms.splitPosition, uv)
-    }
-
-    case "quad": {
-      const tl = visualized[0] ?? vec4(0, 0, 0, 1)
-      const tr = visualized[1] ?? tl
-      const bl = visualized[2] ?? tl
-      const br = visualized[3] ?? tr
-      return quadLayout(tl, tr, bl, br, uv)
-    }
-
-    case "overlay": {
-      const base = visualized[0] ?? vec4(0, 0, 0, 1)
-      const overlay = visualized[1] ?? visualized[0] ?? vec4(1, 0, 1, 1)
-      return mix(base, overlay, uniforms.opacity)
-    }
-
+  switch (mode) {
+    case "normal":
+      return visualizeNormal(node as Vec4Node)
+    case "depth":
+      return visualizeDepth(
+        node as FloatNode,
+        scale !== undefined ? float(scale) : undefined,
+        bias !== undefined ? float(bias) : undefined,
+      )
+    case "heatmap":
+      return visualizeHeatmap(
+        node as FloatNode,
+        scale !== undefined ? float(scale) : undefined,
+        bias !== undefined ? float(bias) : undefined,
+      )
+    case "passthrough":
     default:
-      return visualized[0]
+      return node as Vec4Node
   }
 }

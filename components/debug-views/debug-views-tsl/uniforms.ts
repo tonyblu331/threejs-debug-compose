@@ -1,32 +1,39 @@
-import { float, uniform, vec2 } from "three/tsl"
-import type { FloatNode, Vec2Node } from "./node-types"
+import { uniform } from "three/tsl"
+import {
+  LAYOUT_INDEX,
+  resolveDebugViewLayout,
+  type DebugViewLayout,
+} from "../debug-view-layout"
 
-export interface DebugViewUniforms {
-  activeChannel: FloatNode
-  splitPosition: FloatNode
-  opacity: FloatNode
-  viewportSize: Vec2Node
-}
+export type { DebugViewLayout, LayoutMode } from "../debug-view-layout"
 
-export function createDebugViewUniforms(): DebugViewUniforms {
+export function createDebugViewUniforms() {
   return {
-    activeChannel: uniform(0),
-    splitPosition: uniform(0.5),
-    opacity: uniform(1),
-    viewportSize: uniform(vec2(1, 1)),
+    activeView: uniform(0),
+    layout: uniform(0),
+    viewCount: uniform(3),
+    gridColumns: uniform(2),
+    gridRows: uniform(2),
+    overlayOpacity: uniform(0.35),
   }
 }
 
+export type DebugViewUniforms = ReturnType<typeof createDebugViewUniforms>
+
 export function updateDebugViewUniforms(
   uniforms: DebugViewUniforms,
-  activeChannel: number,
-  splitPosition: number,
-  opacity: number,
-  width: number,
-  height: number,
+  activeView: number,
+  layout: DebugViewLayout = "single",
+  viewCount: number = 1,
+  overlayOpacity: number = 0.35,
 ) {
-  uniforms.activeChannel.value = activeChannel
-  uniforms.splitPosition.value = splitPosition
-  uniforms.opacity.value = opacity
-  uniforms.viewportSize.value.set(width, height)
+  const resolvedLayout = resolveDebugViewLayout(layout)
+  const safeViewCount = Math.max(1, viewCount)
+
+  uniforms.activeView.value = Math.max(0, Math.min(activeView, safeViewCount - 1))
+  uniforms.layout.value = LAYOUT_INDEX[resolvedLayout.mode]
+  uniforms.viewCount.value = safeViewCount
+  uniforms.gridColumns.value = resolvedLayout.columns
+  uniforms.gridRows.value = resolvedLayout.rows
+  uniforms.overlayOpacity.value = Math.max(0, Math.min(overlayOpacity, 1))
 }

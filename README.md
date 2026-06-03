@@ -4,13 +4,46 @@
 [![license](https://img.shields.io/npm/l/threejs-debug-compose.svg)](./LICENSE)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/threejs-debug-compose.svg)](https://bundlephobia.com/package/threejs-debug-compose)
 
-Composable TSL debug views for a Three.js WebGPU render pipeline.
+Small debug views for Three.js WebGPU + TSL render pipelines.
 
-The demo renders the scene into compact WebGPU MRT passes, exposes Beauty/Normal/Depth plus packed material buffers, and composites them through a fullscreen `RenderPipeline`.
+It lets you inspect what your scene is producing while you build: beauty, normals, depth, material channels, override views, and estimated shader complexity. It is focused on WebGPU debugging, not on being a full scene inspector.
 
 ![threejs-debug-compose composed viewport banner](https://cdn.jsdelivr.net/npm/threejs-debug-compose@0.1.1/assets/readme-compose-banner.png)
 
+## Status
+
+- WebGPU-first.
+- TSL-first.
+- React/R3F runtime component.
+- No WebGL fallback right now.
+- Not an `EffectComposer` helper.
+
+The current runtime uses `three/webgpu`, `three/tsl`, WebGPU MRT passes, and a fullscreen `RenderPipeline`. If your app is still on WebGL, this package is not the fallback path yet.
+
+## Install
+
+```bash
+pnpm add threejs-debug-compose
+```
+
+`three`, `react`, `@react-three/fiber`, `@react-three/drei`, and `leva` are peer dependencies for the React runtime.
+
 ## Quick Start
+
+```tsx
+import { DebugViews, useDebugViewsControls } from "threejs-debug-compose/react"
+import { DEFAULT_DEBUG_VIEWS, getDebugViewLabels } from "threejs-debug-compose"
+
+function DebugLayer() {
+  const controls = useDebugViewsControls({
+    viewLabels: getDebugViewLabels(DEFAULT_DEBUG_VIEWS),
+  })
+
+  return <DebugViews views={DEFAULT_DEBUG_VIEWS} {...controls} />
+}
+```
+
+Or define only the views you need:
 
 ```tsx
 import { DebugViews } from "threejs-debug-compose/react"
@@ -27,54 +60,47 @@ import { DebugViews } from "threejs-debug-compose/react"
 />
 ```
 
-## Built-in Views
+## What It Shows
 
-| Mode | Source | Output |
-|------|--------|--------|
-| `passthrough` | scene color output | beauty pass |
-| `passthrough` | 8-bit encoded `normalView` MRT output | RGB normal visualization |
-| `passthrough` | 8-bit encoded material detail MRT | material normal / normal-map visualization |
-| `depth` | pass depth texture converted to view-space distance | inverted grayscale |
-| `passthrough` | packed material MRT | base color/albedo, roughness, AO, metallic, opacity |
-| `passthrough` | material detail MRT | emissive color |
-| `passthrough` | wireframe override pass | white wireframe |
-| `passthrough` | neutral material override pass | lighting-only visualization |
-| `passthrough` | reflective neutral material override pass | reflection-only visualization |
-| `heatmap` | bucketed shader-complexity override pass | estimated shader complexity heatmap |
+Built-in debug sources:
 
-The material data is packed into one RGBA target:
+- Beauty
+- Normal
+- Depth
+- Base Color / Albedo
+- Material Normal / Normal Map
+- Emissive
+- Roughness
+- AO
+- Metallic
+- Opacity
+- Wireframe
+- Lighting Only
+- Reflection Only
+- Estimated Shader Complexity
+
+Material scalars are packed into one RGBA target:
 
 - `R`: roughness
 - `G`: metallic
 - `B`: AO
 - `A`: opacity
 
-This keeps the composer under the common WebGPU `maxColorAttachmentBytesPerSample` limit instead of allocating one render target per scalar debug view.
+That avoids creating one render target per scalar view. Material-normal and emissive use a second material-detail pass. Wireframe, lighting-only, reflection-only, and shader-cost views are created only when the active layout needs them.
 
-Emissive and material-normal/normal-map views use a second small MRT pass. That keeps the main pass below the attachment byte budget while preserving both geometry normals and material-perturbed normals. Lighting-only, reflection-only, estimated shader-complexity, and wireframe use demand-driven override passes, so they add GPU work only when selected by the active layout or viewport plan.
-
-### Estimated Shader Complexity
-
-The `shaderCost` view provides a highly optimized, declarative estimation of shader workload without expensive runtime shader parsing. It evaluates:
-- **Lighting Model Tier**: Unlit < Per-Vertex < Per-Pixel < PBR < Advanced PBR.
-- **Texture Overhead**: Weights based on texture type (e.g., `normalMap` costs more than `aoMap`) and resolution (4K > 1024px > 256px).
-- **Pipeline Breakers**: Penalties for `alphaTest`, `transparent`, and `clippingPlanes`.
-- **Advanced Optics**: Additional weight for `transmission`, `clearcoat`, `iridescence`, and `sheen`.
-- **Custom Shaders**: Infers complexity via uniform count for `ShaderMaterial` instances.
-
-This approach guarantees zero regex overhead, bounded memory usage (LRU cache), and immediate early exits for cheap materials, making it safe for real-time debug overlays.
+`shaderCost` is an estimate, not a native GPU instruction counter. It buckets materials from runtime material signals such as material type, texture slots, texture resolution, transparency, alpha test, clipping, physical-material features, and custom shader uniform count.
 
 ## Render Modes
 
-`DebugViews` supports two public modes:
+`DebugViews` has two modes:
 
-- `compose` - default/current path. One TSL fullscreen compositor presents single, overlay, split, row, column, and grid layouts.
-- `viewport` - explicit viewport-assignment path. `viewportViews` defines the panes to present; the internal render-graph plan dedupes repeated pass construction and presents cells with renderer viewport/scissor bounds.
+- `compose`: one fullscreen TSL output for single, overlay, split, row, column, and grid layouts.
+- `viewport`: explicit viewport assignment with labels, per-pane resolution scale, and scissor-based presentation.
 
 ```tsx
 <DebugViews
   mode="viewport"
-  views={views}
+  views={DEFAULT_DEBUG_VIEWS}
   viewportViews={[
     { view: "beauty", label: "Beauty" },
     { view: "lightingOnly", label: "Lighting" },
@@ -87,88 +113,29 @@ This approach guarantees zero regex overhead, bounded memory usage (LRU cache), 
 />
 ```
 
-Use `compose` for cheap compositing and overlays. Use `viewport` when callers need stable pane assignments, labels, per-pane resolution policy, or scissor-based presentation. `resolutionScale` is quantized to `1`, `0.5`, or `0.25` so render targets can be pooled predictably instead of producing one-off VRAM allocations.
+`resolutionScale` is quantized to `1`, `0.5`, or `0.25` so render targets stay predictable instead of creating one-off sizes.
 
 ## Layouts
 
-- `single` - one view at a time (switch with `activeView`)
-- `split-h` - left/right split by view index
-- `split-v` - top/bottom split by view index
-- `quad` - 2x2 grid; empty cells repeat the beauty view
-- `row` - N views side by side with `slots`
-- `column` - N stacked views with `slots`
-- `grid` - explicit `columns` x `rows` topology
-- `overlay` - alpha blend views over the beauty pass
+- `single`: one view at a time.
+- `overlay`: blends the active view over beauty.
+- `split-h`: left/right split.
+- `split-v`: top/bottom split.
+- `quad`: 2x2 grid.
+- `row`: N views side by side.
+- `column`: N stacked views.
+- `grid`: explicit `columns` x `rows` layout.
 
 ```tsx
-<DebugViews views={views} layout="row" slots={4} />
-<DebugViews views={views} layout="row" slots={3} />
-<DebugViews views={views} layout="grid" columns={4} rows={1} />
+<DebugViews views={DEFAULT_DEBUG_VIEWS} layout="row" slots={4} showLabels />
+<DebugViews views={DEFAULT_DEBUG_VIEWS} layout="grid" columns={4} rows={1} showLabels />
 ```
 
-The render plan still selects only the visible slot budget, so a four-wide row does not force every registered debug source to allocate.
+The render plan selects only the visible slot budget. A four-wide row does not force every registered debug view to allocate.
 
-## Viewport Labels
+## Custom TSL Views
 
-Enable labels to identify each viewport in split, row, column, or grid layouts:
-
-```tsx
-<DebugViews
-  views={views}
-  layout="row"
-  slots={4}
-  showLabels
-  viewportLabels={["Beauty", "Normals", "Depth", "Albedo"]}
-/>
-```
-
-## Custom TSL Nodes
-
-You can provide a custom node per view. If omitted, the component resolves a built-in source node from the scene pass.
-
-```tsx
-import { float, vec4 } from "three/tsl"
-
-{ label: "Constant", node: float(0.5), mode: "depth", scale: 1 }
-{ label: "Custom Color", node: vec4(1, 0, 0, 1), mode: "passthrough" }
-```
-
-## Leva Controls
-
-Interactive GUI for switching views at runtime:
-
-```tsx
-import { useDebugViewsControls } from "threejs-debug-compose/react"
-
-const controls = useDebugViewsControls({
-  viewLabels: ["Beauty", "Normal", "Depth", "Base Color / Albedo"],
-})
-```
-
-## Verification
-
-```bash
-pnpm verify
-```
-
-For runtime-facing WebGPU changes, also smoke-test the Vite demo in a browser with WebGPU support:
-
-```bash
-pnpm dev
-```
-
-## Project Shape
-
-- `components/debug-views/` is the package source.
-- `threejs-debug-compose` exports core helpers, planning utilities, TSL compositor helpers, and public types.
-- `threejs-debug-compose/react` exports the React/R3F runtime component and Leva controls.
-- `src/` is the local demo app, not package source.
-- `packages/docs/` is the Astro documentation site.
-
-
-### Stable Custom Debug Views
-
-For custom shader/debug nodes that may be recreated between React renders, prefer `createCustomDebugView` with a stable `id`:
+You can pass a custom TSL node as a debug view:
 
 ```tsx
 import { float, vec4 } from "three/tsl"
@@ -184,4 +151,26 @@ const fresnelView = createCustomDebugView({
 <DebugViews views={[...DEFAULT_DEBUG_VIEWS, fresnelView]} />
 ```
 
-The viewport render graph uses the stable `id` to dedupe equivalent custom node views. If the custom debug output needs its own render target, material override, or disposal lifecycle, model it as a dedicated pass provider instead of forcing it into a compositor-only node.
+Use a stable `id` when a custom node can be recreated between React renders. The viewport render graph uses that id to dedupe equivalent custom views.
+
+If a custom debug output needs its own render target, material override, or disposal lifecycle, model it as a dedicated pass provider instead of forcing it into a compositor-only node.
+
+## Project Shape
+
+- `components/debug-views/` is the package source.
+- `threejs-debug-compose` exports debug view definitions, planning utilities, TSL helpers, and public types.
+- `threejs-debug-compose/react` exports the R3F `DebugViews` component and Leva controls.
+- `src/` is the local demo app.
+- `packages/docs/` is the Astro documentation site.
+
+## Verification
+
+```bash
+pnpm verify
+```
+
+For runtime-facing WebGPU changes, also smoke-test the Vite demo in a browser with WebGPU support:
+
+```bash
+pnpm dev
+```

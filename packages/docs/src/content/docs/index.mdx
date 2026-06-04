@@ -3,7 +3,7 @@ title: threejs-debug-view
 description: Composable TSL debug views for Three.js WebGPU render pipelines.
 template: splash
 hero:
-  tagline: Build, compose, and inspect WebGPU debug views without turning your renderer into spaghetti.
+  tagline: Inspect Three.js WebGPU render outputs without wiring one-off debug branches.
   actions:
     - text: Quick Start
       link: /threejs-debug-view/guides/quick-start/
@@ -13,21 +13,38 @@ hero:
       icon: external
 ---
 
-`threejs-debug-view` provides composable debug views for Three.js WebGPU render pipelines.
-It renders scene outputs into compact MRT passes, exposes material and geometry channels, and presents them through either a fullscreen compositor or explicit viewport panes.
+`threejs-debug-view` adds a focused debug layer for Three.js WebGPU scenes.
+Use it to switch between beauty, normals, depth, material channels, wireframe, lighting-only, reflection-only, and estimated shader-cost views while keeping the render path predictable.
 
-## Why it exists
+## Live demo
 
-Debugging shaders and materials gets painful when every new view becomes another one-off render branch.
-This package keeps the architecture boring:
+Use the controls in the top-right panel to switch views, layouts, opacity, and pane count.
+The demo uses the same Damaged Helmet scene and shader-cost samples from the tested Vite app.
+
+[Open the demo in a new tab](/threejs-debug-view/demo/)
+
+<iframe
+  src="/threejs-debug-view/demo/"
+  title="threejs-debug-view live demo"
+  loading="eager"
+  style={{
+    border: "1px solid var(--sl-color-gray-5)",
+    borderRadius: "0.75rem",
+    height: "min(72vh, 720px)",
+    minHeight: "520px",
+    width: "100%",
+  }}
+/>
+
+:::note
+The demo needs browser WebGPU support. When native WebGPU is unavailable, the badge in the bottom-left reports the active fallback backend.
+:::
+
+## What it does
 
 - **Built-in sources** for beauty, normals, depth, albedo, roughness, AO, opacity, emissive, wireframe, and lighting-only output.
-- **Composed layouts** for single, overlay, split, row, column, and grid presentations.
-- **Viewport mode** for explicit pane assignments, labels, per-pane cameras, and predictable resolution scaling.
-- **Custom TSL node views** for shader-specific inspection without forking the built-in source list.
-
-## Core idea
-
-The compositor should not care where a debug value came from. Built-in sources, custom TSL nodes, and future pass-backed views all resolve to nodes before presentation.
-That keeps the debug UI flexible without polluting the render pipeline with random special cases.
+- **Render layouts** for single, overlay, split, row, column, and grid presentations.
+- **Viewport mode** for fixed pane assignments, labels, per-pane cameras, and predictable resolution scaling.
+- **Custom TSL views** for shader-specific inspection without forking the built-in source list.
+- **R3F adapter** through `threejs-debug-view/r3f`, with the root package kept React-free.
 

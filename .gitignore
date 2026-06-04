@@ -8,3 +8,4 @@ dist/
 .astro/
 packages/docs/.astro/
 packages/docs/dist/
+packages/docs/public/

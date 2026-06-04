@@ -2,7 +2,9 @@ import { lazy, Suspense, useState } from "react"
 import { WebGpuCanvas } from "./components/WebGpuCanvas"
 import { Scene } from "./components/Scene"
 
-const DevDebugOverlay = import.meta.env.DEV
+const enableDebugOverlay = import.meta.env.DEV || import.meta.env.VITE_DEBUG_VIEW_DEMO === "true"
+
+const DevDebugOverlay = enableDebugOverlay
   ? lazy(() =>
       import("./components/DebugOverlay").then(({ DebugOverlay }) => ({
         default: DebugOverlay,

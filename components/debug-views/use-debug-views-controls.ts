@@ -1,4 +1,5 @@
 import { useControls } from "leva"
+import { getDebugViewLabels } from "./debug-view-definitions"
 
 interface UseDebugViewsControlsOptions {
   viewLabels?: string[]
@@ -6,7 +7,7 @@ interface UseDebugViewsControlsOptions {
 }
 
 export function useDebugViewsControls(options: UseDebugViewsControlsOptions = {}) {
-  const { viewLabels = ["Beauty", "Normal", "Depth"], maxLayoutSlots } = options
+  const { viewLabels = getDebugViewLabels(), maxLayoutSlots } = options
   const slotLimit = Math.max(1, maxLayoutSlots ?? viewLabels.length)
   const defaultSlots = Math.min(4, slotLimit)
 

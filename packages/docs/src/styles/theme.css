@@ -7,6 +7,13 @@
     --sl-color-text-accent: var(--sl-color-white);
     --sl-color-bg-accent: var(--sl-color-white);
     --sl-color-text-invert: var(--sl-color-black);
+    --sl-search-corners: 0px;
+    --pagefind-ui-primary: var(--sl-color-white);
+    --pagefind-ui-text: var(--sl-color-text);
+    --pagefind-ui-background: var(--sl-color-black);
+    --pagefind-ui-border: var(--sl-color-gray-5);
+    --pagefind-ui-tag: var(--sl-color-gray-6);
+    --pagefind-ui-border-radius: 0px;
 
     --sl-color-blue-low: hsl(0, 0%, 16%);
     --sl-color-blue: hsl(0, 0%, 72%);
@@ -33,6 +40,11 @@
     --sl-color-text-accent: hsl(0, 0%, 0%);
     --sl-color-bg-accent: hsl(0, 0%, 0%);
     --sl-color-text-invert: hsl(0, 0%, 100%);
+    --pagefind-ui-primary: hsl(0, 0%, 0%);
+    --pagefind-ui-text: hsl(0, 0%, 0%);
+    --pagefind-ui-background: hsl(0, 0%, 100%);
+    --pagefind-ui-border: hsl(0, 0%, 72%);
+    --pagefind-ui-tag: hsl(0, 0%, 94%);
 
     --sl-color-blue-low: hsl(0, 0%, 92%);
     --sl-color-blue: hsl(0, 0%, 32%);
@@ -52,11 +64,33 @@
   }
 
   .sl-link-button,
+  .sl-link-button *,
+  .site-title,
+  .social-icons a,
+  .sidebar-content a,
+  .right-sidebar a,
+  .sl-anchor-link,
+  .pagination-links a,
+  .mobile-preferences,
+  .mobile-preferences *,
+  starlight-theme-select,
+  starlight-theme-select *,
+  starlight-toc,
+  starlight-toc *,
   button,
   input,
   select,
   textarea {
     border-radius: 0 !important;
+  }
+
+  a,
+  a:hover,
+  a:focus,
+  .sl-anchor-link,
+  .sidebar-content a[aria-current="page"],
+  .right-sidebar a[aria-current="true"] {
+    color: var(--sl-color-text-accent);
   }
 
   .sl-link-button.primary {
@@ -99,10 +133,23 @@
   }
 
   .expressive-code .ec-line :where(span[style^="--"]:not([class])),
-  .expressive-code .ec-line :where(span[style^="--"]:not([class])) * {
+  .expressive-code .ec-line :where(span[style^="--"]:not([class])) *,
+  .expressive-code [style*="--0:"],
+  .expressive-code [style*="--1:"],
+  .expressive-code [style*="color"] {
     background-color: transparent !important;
     color: var(--sl-color-text) !important;
     text-decoration-color: var(--sl-color-text) !important;
+  }
+
+  .expressive-code .frame,
+  .expressive-code .frame *,
+  .expressive-code pre,
+  .expressive-code code {
+    --0: var(--sl-color-text) !important;
+    --1: var(--sl-color-text) !important;
+    --0bg: transparent !important;
+    --1bg: transparent !important;
   }
 
   .expressive-code {

@@ -261,7 +261,7 @@ function DebugViewportLabelOverlay({
                 backdropFilter: "blur(8px)",
                 background: "rgba(0, 0, 0, 0.58)",
                 border: "1px solid rgba(255, 255, 255, 0.16)",
-                borderRadius: 4,
+                borderRadius: 0,
                 color: "#fff",
                 fontFamily: "monospace",
                 fontSize: 11,
@@ -308,7 +308,7 @@ function ShaderCostLegendOverlay() {
             alignItems: "center",
             background: "rgba(0, 0, 0, 0.62)",
             border: "1px solid rgba(255, 255, 255, 0.16)",
-            borderRadius: 6,
+            borderRadius: 0,
             boxShadow: "0 10px 32px rgba(0, 0, 0, 0.32)",
             display: "grid",
             gap: 8,
@@ -323,7 +323,7 @@ function ShaderCostLegendOverlay() {
               background:
                 "linear-gradient(90deg, #000 0%, #000 6%, #00ff1f 18%, #fff000 48%, #ff0d00 80%, #fff 100%)",
               border: "1px solid rgba(255, 255, 255, 0.24)",
-              borderRadius: 999,
+              borderRadius: 0,
               height: 12,
               overflow: "hidden",
             }}

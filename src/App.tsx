@@ -36,7 +36,7 @@ function BackendBadge({ label }: { label: string }) {
       color: "#fff",
       fontFamily: "monospace",
       fontSize: 12,
-      borderRadius: 4,
+      borderRadius: 0,
       pointerEvents: "none",
       zIndex: 100,
     }}>

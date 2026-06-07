@@ -29,6 +29,7 @@ export type DebugViewSource =
   | "wireframe"
   | "lightingOnly"
   | "reflectionOnly"
+  | "overdraw"
   | "shaderCost"
 
 export interface DebugView {

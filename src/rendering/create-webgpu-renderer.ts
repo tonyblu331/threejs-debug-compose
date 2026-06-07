@@ -2,9 +2,14 @@ import { ACESFilmicToneMapping, PCFSoftShadowMap, SRGBColorSpace } from "three"
 import { WebGPURenderer } from "three/webgpu"
 
 type RendererFactoryProps = ConstructorParameters<typeof WebGPURenderer>[0]
+type RendererBackendFlags = {
+  isWebGLBackend?: boolean
+}
 
 const WEBGPU_PREFLIGHT_TIMEOUT_MS = 1_500
-const RENDERER_INIT_TIMEOUT_MS = 5_000
+const REQUIRED_COLOR_ATTACHMENT_BYTES_PER_SAMPLE = 40
+const ENABLE_SHADER_COST_TIMING =
+  import.meta.env.DEV || import.meta.env.VITE_DEBUG_SHADER_TIMING === "true"
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
@@ -20,7 +25,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: 
   }
 }
 
-async function hasUsableWebGpuAdapter() {
+export async function hasUsableWebGpuAdapter() {
   if (typeof navigator === "undefined" || !("gpu" in navigator)) {
     return false
   }
@@ -32,22 +37,33 @@ async function hasUsableWebGpuAdapter() {
       null,
     )
 
-    return adapter !== null
+    return (
+      adapter !== null &&
+      adapter.limits.maxColorAttachmentBytesPerSample >= REQUIRED_COLOR_ATTACHMENT_BYTES_PER_SAMPLE
+    )
   } catch {
     return false
   }
 }
 
-async function createInitializedRenderer(props: RendererFactoryProps, forceWebGL: boolean) {
+async function createInitializedRenderer(props: RendererFactoryProps) {
   const renderer = new WebGPURenderer({
     ...props,
     antialias: false,
     alpha: false,
     powerPreference: "high-performance",
-    forceWebGL,
+    forceWebGL: false,
+    requiredLimits: {
+      maxColorAttachmentBytesPerSample: REQUIRED_COLOR_ATTACHMENT_BYTES_PER_SAMPLE,
+    },
+    trackTimestamp: ENABLE_SHADER_COST_TIMING,
   })
 
   await renderer.init()
+
+  if ((renderer.backend as RendererBackendFlags | undefined)?.isWebGLBackend) {
+    throw new Error("WebGPU is required for this demo, but Three initialized the WebGL2 backend.")
+  }
 
   renderer.outputColorSpace = SRGBColorSpace
   renderer.toneMapping = ACESFilmicToneMapping
@@ -60,21 +76,9 @@ async function createInitializedRenderer(props: RendererFactoryProps, forceWebGL
 }
 
 export async function createWebGpuRenderer(props: RendererFactoryProps) {
-  const shouldTryNativeWebGpu = await hasUsableWebGpuAdapter()
-
-  if (!shouldTryNativeWebGpu) {
-    return createInitializedRenderer(props, true)
+  if (!await hasUsableWebGpuAdapter()) {
+    throw new Error("WebGPU is required for this demo, but no native adapter is available.")
   }
 
-  try {
-    const nativeRenderer = await withTimeout(createInitializedRenderer(props, false), RENDERER_INIT_TIMEOUT_MS, null)
-
-    if (nativeRenderer) {
-      return nativeRenderer
-    }
-  } catch {
-    // Fall through to the same WebGPURenderer running its WebGL2 backend.
-  }
-
-  return createInitializedRenderer(props, true)
+  return createInitializedRenderer(props)
 }

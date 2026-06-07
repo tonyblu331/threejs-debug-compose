@@ -32,6 +32,7 @@ const fresnelView = createCustomDebugView({
 ```
 
 The viewport render graph uses the stable `id` to dedupe equivalent custom node views.
+The compose runtime also includes custom node identity in its pipeline key, so replacing a custom `node` instance with the same label/source still rebuilds the pipeline instead of rendering stale shader code.
 
 :::caution
 Do not force every shader debugging need into `node`.

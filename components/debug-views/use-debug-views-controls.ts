@@ -1,5 +1,21 @@
 import { useControls } from "leva"
 import { getDebugViewLabels } from "./debug-view-definitions"
+import type { DebugViewsProps } from "./debug-views-post"
+
+export type DebugViewsControlValues = Required<
+  Pick<
+    DebugViewsProps,
+    | "activeView"
+    | "columns"
+    | "enabled"
+    | "layout"
+    | "mode"
+    | "overlayOpacity"
+    | "rows"
+    | "showLabels"
+    | "slots"
+  >
+>
 
 interface UseDebugViewsControlsOptions {
   viewLabels?: string[]

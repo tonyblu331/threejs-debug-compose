@@ -36,6 +36,15 @@ Try them in the [homepage demo](/threejs-debug-view/).
 Scalar material data is packed into one RGBA target instead of allocating one render target per scalar view.
 That keeps the composer under common WebGPU color attachment limits.
 
+Unsupported material properties use shader-side defaults instead of temporary material mutation:
+
+- roughness defaults to `1`
+- metallic defaults to `0`
+- AO defaults to `1`, meaning no material AO contribution
+- opacity defaults to `1`
+
+`ao` reads material-authored AO maps. It is not a screen-space AO buffer unless your app exposes one through a custom view or a dedicated pass.
+
 ## Override passes
 
 | Source | Mode | Output | Cost model |
@@ -43,12 +52,15 @@ That keeps the composer under common WebGPU color attachment limits.
 | `wireframe` | `passthrough` | White wireframe override material. | Renders only when selected or visible in a layout. |
 | `lightingOnly` | `passthrough` | Neutral non-metal material override. | Renders only when selected or visible in a layout. |
 | `reflectionOnly` | `passthrough` | Reflective neutral material override. | Renders only when selected or visible in a layout. |
-| `shaderCost` | `heatmap` | Estimated shader-complexity heatmap from bucketed override materials. | Renders only when selected or visible in a layout. |
+| `overdraw` | `heatmap` | Alpha-heavy overdraw diagnostic. | Renders only when selected or visible in a layout. |
+| `shaderCost` | `heatmap` | Estimated shader-complexity heatmap from source-labeled shader-unit buckets. | Renders only when selected or visible in a layout. |
 
 Demand-driven override passes add another scene render only when the selected layout or viewport plan actually needs that source.
 
+See [Performance Model](/threejs-debug-view/guides/performance/) for how single-view switching reuses compatible runtime pipelines.
+
 :::caution
-`shaderCost` is an estimated shader-complexity view, not a browser-exposed shader instruction counter. Use it to find likely expensive programs/materials, then validate timing with real profiling tools.
+`shaderCost` is an estimated shader-complexity view, not a browser-exposed shader instruction counter. The demo can show WebGPU timestamp render-pass timing when supported, but that timing is calibration evidence, not native ALU/TEX/occupancy data.
 :::
 
 ## Compose example

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useFrame, useThree } from "@react-three/fiber"
 import { Html } from "@react-three/drei"
 import { RenderPipeline, type WebGPURenderer } from "three/webgpu"
@@ -7,7 +7,6 @@ import { createViewCompositor, type DebugView } from "./debug-views-tsl/composit
 import type { DebugNode, FloatNode } from "./debug-views-tsl/node-types"
 import { createDebugViewUniforms, updateDebugViewUniforms } from "./debug-views-tsl/uniforms"
 import { MeshBasicMaterial, MeshStandardMaterial, Vector2, Vector4, type Camera, type Scene } from "three"
-import { createAoFallbacks } from "./debug-views-tsl/ao-fallbacks"
 import {
   configureMaterialDetailPass,
   configureSceneDebugPass,
@@ -48,9 +47,17 @@ import {
   createShaderCostOverride,
   type ShaderCostOverride,
 } from "./shader-cost/cost-override"
+import {
+  createShaderCostTimingCollector,
+  type ShaderCostTimingSnapshot,
+} from "./shader-cost/timing-collector"
+import {
+  createOverdrawOverride,
+  type OverdrawOverride,
+} from "./overdraw/overdraw-override"
 
 export interface DebugViewsProps {
-  views: DebugView[]
+  views: readonly DebugView[]
   mode?: DebugViewsMode
   viewportViews?: DebugViewportView[]
   activeView?: number
@@ -106,7 +113,7 @@ export function DebugViews({
 }
 
 interface DebugViewsPipelineProps {
-  views: DebugView[]
+  views: readonly DebugView[]
   mode: DebugViewsMode
   viewportViews?: DebugViewportView[]
   activeView: number
@@ -132,7 +139,6 @@ function DebugViewsPipeline({
 }: DebugViewsPipelineProps) {
   const { camera, gl, scene } = useThree()
   const uniforms = useMemo(() => createDebugViewUniforms(), [])
-  const aoFallbacks = useMemo(() => createAoFallbacks(scene), [scene])
   const resolvedLayout = useMemo(
     () => resolveDebugViewLayout(layout, layoutOptions),
     [layout, layoutOptions],
@@ -157,16 +163,38 @@ function DebugViewsPipeline({
     () => visibleViews.some((view) => getDefaultDebugViewSource(view) === "shaderCost"),
     [visibleViews],
   )
+  const showsOverdraw = useMemo(
+    () => visibleViews.some((view) => getDefaultDebugViewSource(view) === "overdraw"),
+    [visibleViews],
+  )
+  const composePipelineKey = useMemo(
+    () => createDebugPipelineRuntimeKey(plan, resolvedLayout),
+    [plan, resolvedLayout],
+  )
+  const webGpuRenderer = toWebGpuRenderer(gl)
+  const shaderCostTimingCollector = useMemo(
+    () => createShaderCostTimingCollector(webGpuRenderer),
+    [webGpuRenderer],
+  )
+  const shaderCostTimingFrame = useRef(0)
+  const [shaderCostTiming, setShaderCostTiming] = useState<ShaderCostTimingSnapshot>(
+    shaderCostTimingCollector.getSnapshot(),
+  )
+  const [shaderCostScanPosition, setShaderCostScanPosition] = useState(0.5)
+
+  useEffect(() => {
+    setShaderCostTiming(shaderCostTimingCollector.getSnapshot())
+  }, [shaderCostTimingCollector])
 
   const composePipelineRef = useDebugPipeline(
     mode === "compose",
     scene,
     camera,
     plan,
+    composePipelineKey,
     resolvedLayout,
-    toWebGpuRenderer(gl),
+    webGpuRenderer,
     uniforms,
-    aoFallbacks,
   )
   const viewportRuntimeRef = useDebugViewportPipelines(
     mode === "viewport",
@@ -174,28 +202,39 @@ function DebugViewsPipeline({
     camera,
     viewportPlan,
     viewportGraph,
-    toWebGpuRenderer(gl),
+    webGpuRenderer,
     uniforms,
-    aoFallbacks,
   )
 
-  useFrame(() => {
+  useFrame((frameState) => {
     const previousBackground = scene.background
     scene.background = null
 
     try {
       if (mode === "viewport") {
         const runtime = viewportRuntimeRef.current
-        if (runtime?.usesAoFallback) {
-          aoFallbacks.refresh()
-        }
         runtime?.render()
       } else {
-        updateDebugViewUniforms(uniforms, 0, resolvedLayout, plan.views.length, overlayOpacity)
-        if (plan.usesAoFallback) {
-          aoFallbacks.refresh()
-        }
+        updateDebugViewUniforms(
+          uniforms,
+          plan.activePipelineView,
+          resolvedLayout,
+          plan.pipelineViews.length,
+          overlayOpacity,
+        )
         composePipelineRef.current?.render()
+      }
+
+      if (showsShaderCost) {
+        const scanPosition = 0.5 - Math.cos(frameState.clock.elapsedTime * 1.35) * 0.5
+        setShaderCostScanPosition(scanPosition)
+
+        shaderCostTimingFrame.current += 1
+        if (shaderCostTimingFrame.current % 30 === 0) {
+          void shaderCostTimingCollector.sample().then((next) => {
+            if (next) setShaderCostTiming(next)
+          })
+        }
       }
     } finally {
       scene.background = previousBackground
@@ -212,7 +251,13 @@ function DebugViewsPipeline({
           viewportPlan={viewportPlan}
         />
       ) : null}
-      {showsShaderCost ? <ShaderCostLegendOverlay /> : null}
+      {showsOverdraw && !showsShaderCost ? <OverdrawLegendOverlay /> : null}
+      {showsShaderCost ? (
+        <ShaderCostLegendOverlay
+          scanPosition={shaderCostScanPosition}
+          timing={shaderCostTiming}
+        />
+      ) : null}
     </>
   )
 }
@@ -236,44 +281,23 @@ function DebugViewportLabelOverlay({
       : createDebugViewportLabels(views, layout, labels),
     [views, layout, labels, viewportPlan],
   )
+  const labelGridStyle = useMemo(
+    () => createLabelGridStyle(layout),
+    [layout],
+  )
 
   if (viewportLabels.length === 0) return null
 
   return (
-    <Html fullscreen style={{ pointerEvents: "none" }}>
+    <Html fullscreen style={htmlOverlayStyle}>
       <div
         aria-hidden="true"
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
-          height: "100%",
-          inset: 0,
-          pointerEvents: "none",
-          position: "absolute",
-          width: "100%",
-        }}
+        style={labelGridStyle}
       >
         {viewportLabels.map((label, index) => (
-          <div key={`${index}:${label}`} style={{ minWidth: 0, position: "relative" }}>
+          <div key={`${index}:${label}`} style={labelCellStyle}>
             <span
-              style={{
-                backdropFilter: "blur(8px)",
-                background: "rgba(0, 0, 0, 0.58)",
-                border: "1px solid rgba(255, 255, 255, 0.16)",
-                borderRadius: 0,
-                color: "#fff",
-                fontFamily: "monospace",
-                fontSize: 11,
-                left: 10,
-                letterSpacing: "0.04em",
-                lineHeight: 1,
-                padding: "6px 8px",
-                position: "absolute",
-                textTransform: "uppercase",
-                top: 10,
-                whiteSpace: "nowrap",
-              }}
+              style={viewportLabelStyle}
             >
               {label}
             </span>
@@ -284,85 +308,288 @@ function DebugViewportLabelOverlay({
   )
 }
 
-function ShaderCostLegendOverlay() {
+function ShaderCostLegendOverlay({
+  scanPosition,
+  timing,
+}: {
+  scanPosition: number
+  timing: ShaderCostTimingSnapshot
+}) {
   return (
-    <Html fullscreen style={{ pointerEvents: "none" }}>
+    <Html fullscreen style={htmlOverlayStyle}>
       <div
         aria-hidden="true"
-        style={{
-          alignItems: "center",
-          bottom: 42,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          left: "50%",
-          pointerEvents: "none",
-          position: "absolute",
-          transform: "translateX(-50%)",
-          width: "min(560px, calc(100vw - 48px))",
-          zIndex: 20,
-        }}
+        style={{ ...shaderCostScanCursorStyle, left: `${scanPosition * 100}%` }}
       >
-        <div
-          style={{
-            alignItems: "center",
-            background: "rgba(0, 0, 0, 0.62)",
-            border: "1px solid rgba(255, 255, 255, 0.16)",
-            borderRadius: 0,
-            boxShadow: "0 10px 32px rgba(0, 0, 0, 0.32)",
-            display: "grid",
-            gap: 8,
-            gridTemplateColumns: "auto 1fr auto",
-            padding: "8px 10px",
-            width: "100%",
-          }}
-        >
-          <span style={legendLabelStyle}>cheap</span>
-          <div
-            style={{
-              background:
-                "linear-gradient(90deg, #000 0%, #000 6%, #00ff1f 18%, #fff000 48%, #ff0d00 80%, #fff 100%)",
-              border: "1px solid rgba(255, 255, 255, 0.24)",
-              borderRadius: 0,
-              height: 12,
-              overflow: "hidden",
-            }}
-          />
-          <span style={legendLabelStyle}>expensive</span>
+        <span style={shaderCostScanCursorLabelStyle}>scan</span>
+      </div>
+      <div
+        aria-hidden="true"
+        style={shaderCostLegendOverlayStyle}
+      >
+        <div style={shaderCostLegendMetricRowStyle}>
+          <span style={shaderCostLegendMetricStyle}>
+            GPU pass {formatShaderCostTiming(timing)}
+          </span>
+          <span style={shaderCostLegendMetricStyle}>
+            timestamp query
+          </span>
         </div>
         <div
-          style={{
-            color: "rgba(255, 255, 255, 0.7)",
-            fontFamily: "monospace",
-            fontSize: 10,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-          }}
+          style={shaderCostLegendPanelStyle}
         >
-          estimated shader complexity · black = no rendered material
+          <span style={legendLabelStyle}>low shader work</span>
+          <ShaderCostLegendRamp scanPosition={scanPosition} />
+          <span style={legendLabelStyle}>high shader work</span>
+        </div>
+        <div
+          style={shaderCostLegendNoteStyle}
+        >
+          estimated shader complexity scan
         </div>
       </div>
     </Html>
   )
 }
 
-const legendLabelStyle = {
+function ShaderCostLegendRamp({ scanPosition }: { scanPosition: number }) {
+  const markerPercent = `${(scanPosition * 100).toFixed(2)}%`
+  const position = `clamp(30px, ${markerPercent}, calc(100% - 30px))`
+
+  return (
+    <div style={shaderCostLegendRampStyle}>
+      <div style={{ ...shaderCostTimingMarkerStyle, left: position }}>
+        <span style={shaderCostTimingMarkerTriangleStyle} />
+        <span style={shaderCostTimingMarkerLabelStyle}>
+          scan cursor
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function OverdrawLegendOverlay() {
+  return (
+    <Html fullscreen style={htmlOverlayStyle}>
+      <div
+        aria-hidden="true"
+        style={shaderCostLegendOverlayStyle}
+      >
+        <div
+          style={shaderCostLegendPanelStyle}
+        >
+          <span style={legendLabelStyle}>no overlap</span>
+          <div
+            style={shaderCostLegendRampStyle}
+          />
+          <span style={legendLabelStyle}>heavy overlap</span>
+        </div>
+        <div
+          style={shaderCostLegendNoteStyle}
+        >
+          pixel overlap
+        </div>
+      </div>
+    </Html>
+  )
+}
+
+const htmlOverlayStyle: CSSProperties = {
+  pointerEvents: "none",
+}
+
+const labelCellStyle: CSSProperties = {
+  minWidth: 0,
+  position: "relative",
+}
+
+const viewportLabelStyle: CSSProperties = {
+  backdropFilter: "blur(8px)",
+  background: "rgba(0, 0, 0, 0.58)",
+  border: "1px solid rgba(255, 255, 255, 0.16)",
+  borderRadius: 0,
+  color: "#fff",
+  fontFamily: "monospace",
+  fontSize: 12,
+  left: 10,
+  letterSpacing: "0.04em",
+  lineHeight: 1,
+  padding: "6px 8px",
+  position: "absolute",
+  textTransform: "uppercase",
+  top: 10,
+  whiteSpace: "nowrap",
+}
+
+const shaderCostLegendOverlayStyle: CSSProperties = {
+  alignItems: "center",
+  bottom: 42,
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  left: "50%",
+  pointerEvents: "none",
+  position: "absolute",
+  transform: "translateX(-50%)",
+  width: "min(560px, calc(100vw - 48px))",
+  zIndex: 20,
+}
+
+const shaderCostScanCursorStyle: CSSProperties = {
+  background: "linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0))",
+  bottom: 102,
+  position: "absolute",
+  top: 94,
+  transform: "translateX(-50%)",
+  transition: "left 90ms linear",
+  width: 2,
+  zIndex: 19,
+}
+
+const shaderCostScanCursorLabelStyle: CSSProperties = {
+  background: "rgba(0, 0, 0, 0.72)",
+  border: "1px solid rgba(255, 255, 255, 0.28)",
+  color: "#fff",
+  fontFamily: "monospace",
+  fontSize: 11,
+  left: 8,
+  letterSpacing: "0.06em",
+  lineHeight: 1,
+  padding: "4px 6px",
+  position: "absolute",
+  textTransform: "uppercase",
+  top: 0,
+  whiteSpace: "nowrap",
+}
+
+const shaderCostLegendMetricRowStyle: CSSProperties = {
+  display: "flex",
+  gap: 6,
+  justifyContent: "space-between",
+  width: "100%",
+}
+
+const shaderCostLegendMetricStyle: CSSProperties = {
+  background: "rgba(0, 0, 0, 0.62)",
+  border: "1px solid rgba(255, 255, 255, 0.16)",
+  color: "rgba(255, 255, 255, 0.86)",
+  fontFamily: "monospace",
+  fontSize: 11,
+  letterSpacing: "0.04em",
+  lineHeight: 1,
+  padding: "5px 7px",
+  textTransform: "uppercase",
+}
+
+const shaderCostLegendPanelStyle: CSSProperties = {
+  alignItems: "center",
+  background: "rgba(0, 0, 0, 0.62)",
+  border: "1px solid rgba(255, 255, 255, 0.16)",
+  borderRadius: 0,
+  boxShadow: "0 10px 32px rgba(0, 0, 0, 0.32)",
+  display: "grid",
+  gap: 8,
+  gridTemplateColumns: "auto 1fr auto",
+  padding: "8px 10px",
+  width: "100%",
+}
+
+const shaderCostLegendRampStyle: CSSProperties = {
+  background:
+    "linear-gradient(90deg, #000 0%, #000 6%, #00ff1f 18%, #fff000 48%, #ff0d00 80%, #fff 100%)",
+  border: "1px solid rgba(255, 255, 255, 0.24)",
+  borderRadius: 0,
+  height: 12,
+  overflow: "visible",
+  position: "relative",
+}
+
+const shaderCostLegendNoteStyle: CSSProperties = {
+  color: "rgba(255, 255, 255, 0.7)",
+  fontFamily: "monospace",
+  fontSize: 12,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+}
+
+const legendLabelStyle: CSSProperties = {
+  color: "#fff",
+  fontFamily: "monospace",
+  fontSize: 12,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+}
+
+const shaderCostTimingMarkerStyle: CSSProperties = {
+  bottom: -5,
+  height: 22,
+  position: "absolute",
+  transform: "translateX(-50%)",
+  transition: "left 220ms ease",
+  width: 0,
+}
+
+const shaderCostTimingMarkerLabelStyle: CSSProperties = {
+  background: "rgba(0, 0, 0, 0.78)",
+  border: "1px solid rgba(255, 255, 255, 0.28)",
   color: "#fff",
   fontFamily: "monospace",
   fontSize: 10,
-  letterSpacing: "0.08em",
+  left: "50%",
+  letterSpacing: "0.06em",
+  lineHeight: 1,
+  padding: "3px 5px",
+  position: "absolute",
   textTransform: "uppercase",
-} as const
+  top: -20,
+  transform: "translateX(-50%)",
+  whiteSpace: "nowrap",
+}
+
+const shaderCostTimingMarkerTriangleStyle: CSSProperties = {
+  borderLeft: "5px solid transparent",
+  borderRight: "5px solid transparent",
+  borderTop: "7px solid #fff",
+  left: -5,
+  position: "absolute",
+  top: -1,
+}
+
+function createLabelGridStyle(layout: ResolvedDebugViewLayout): CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
+    height: "100%",
+    inset: 0,
+    pointerEvents: "none",
+    position: "absolute",
+    width: "100%",
+  }
+}
+
+function formatShaderCostTiming(timing: ShaderCostTimingSnapshot) {
+  switch (timing.status) {
+    case "measured":
+      return `${timing.elapsedMs?.toFixed(2)} ms`
+    case "sampling":
+      return "timing sampling"
+    case "failed":
+      return "timing failed"
+    case "unsupported":
+      return "timing unsupported"
+  }
+}
 
 function useDebugPipeline(
   enabled: boolean,
   scene: Scene,
   camera: Camera,
   plan: DebugRenderPlan,
+  runtimeKey: string,
   layout: ResolvedDebugViewLayout,
   gl: WebGPURenderer,
   uniforms: ReturnType<typeof createDebugViewUniforms>,
-  aoFallbacks: ReturnType<typeof createAoFallbacks>,
 ) {
   const pipelineRef = useRef<RenderPipeline | null>(null)
 
@@ -370,22 +597,19 @@ function useDebugPipeline(
     if (!enabled) return
 
     const runtime = createDebugPipelineRuntime(scene, camera, plan, layout, gl, uniforms)
-    if (plan.usesAoFallback) aoFallbacks.apply()
 
     pipelineRef.current = runtime.pipeline
 
     return () => {
       runtime.dispose()
-      aoFallbacks.restore()
       pipelineRef.current = null
     }
-  }, [enabled, scene, camera, plan, layout, gl, uniforms, aoFallbacks])
+  }, [enabled, scene, camera, runtimeKey, layout, gl, uniforms])
 
   return pipelineRef
 }
 
 interface DebugViewportRuntime {
-  usesAoFallback: boolean
   render: () => void
 }
 
@@ -397,7 +621,6 @@ function useDebugViewportPipelines(
   viewportGraph: DebugViewportRenderGraphPlan | undefined,
   gl: WebGPURenderer,
   uniforms: ReturnType<typeof createDebugViewUniforms>,
-  aoFallbacks: ReturnType<typeof createAoFallbacks>,
 ) {
   const runtimeRef = useRef<DebugViewportRuntime | null>(null)
 
@@ -423,12 +646,8 @@ function useDebugViewportPipelines(
     const rendererSize = new Vector2()
     const previousViewport = new Vector4()
     const previousScissor = new Vector4()
-    const usesAoFallback = passRuntimes.some((entry) => entry.plan.usesAoFallback)
-
-    if (usesAoFallback) aoFallbacks.apply()
 
     runtimeRef.current = {
-      usesAoFallback,
       render: () => {
         gl.getSize(rendererSize)
         const previousScissorTest = gl.getScissorTest()
@@ -463,10 +682,9 @@ function useDebugViewportPipelines(
       for (const passRuntime of passRuntimes) {
         passRuntime.runtime.dispose()
       }
-      aoFallbacks.restore()
       runtimeRef.current = null
     }
-  }, [enabled, scene, defaultCamera, viewportPlan, viewportGraph, gl, uniforms, aoFallbacks])
+  }, [enabled, scene, defaultCamera, viewportPlan, viewportGraph, gl, uniforms])
 
   return runtimeRef
 }
@@ -477,6 +695,14 @@ interface DebugPipelineRuntime {
 }
 
 interface ShaderCostPass {
+  setResolutionScale(resolutionScale: number): void
+  getTextureNode(name?: string): DebugNode
+  getViewZNode(name?: string): FloatNode
+  updateBefore(frame: unknown): unknown
+  dispose(): void
+}
+
+interface OverdrawPass {
   setResolutionScale(resolutionScale: number): void
   getTextureNode(name?: string): DebugNode
   getViewZNode(name?: string): FloatNode
@@ -543,20 +769,24 @@ function createDebugPipelineRuntime(
     })
   }
 
+  const overdrawOverride = plan.usesOverdrawPass ? createOverdrawOverride() : undefined
+  const overdrawPass = plan.usesOverdrawPass
+    ? createOverdrawPass(scene, camera, resolutionScale, overdrawOverride)
+    : undefined
   const shaderCostOverride = plan.usesShaderCostPass ? createShaderCostOverride() : undefined
   const shaderCostPass = plan.usesShaderCostPass
     ? createShaderCostPass(scene, camera, resolutionScale, shaderCostOverride)
     : undefined
-
   const getDefaultNode = createDefaultDebugNodeResolver(sp, {
     lightingOnlyPass,
     materialDetailPass,
+    overdrawPass,
     reflectionOnlyPass,
     shaderCostPass,
     wireframePass,
   })
 
-  const resolvedViews = plan.views.map((v) => ({
+  const resolvedViews = plan.pipelineViews.map((v) => ({
     ...v,
     mode: getResolvedDebugViewMode(v),
     node: v.node ?? getDefaultNode(getDefaultDebugViewSource(v)),
@@ -575,12 +805,60 @@ function createDebugPipelineRuntime(
       lightingOnlyPass?.dispose()
       reflectionOnlyPass?.overrideMaterial?.dispose()
       reflectionOnlyPass?.dispose()
+      overdrawPass?.dispose()
+      overdrawOverride?.dispose()
       shaderCostPass?.dispose()
       shaderCostOverride?.dispose()
       wireframePass?.overrideMaterial?.dispose()
       wireframePass?.dispose()
     },
   }
+}
+
+function createDebugPipelineRuntimeKey(
+  plan: DebugRenderPlan,
+  layout: ResolvedDebugViewLayout,
+) {
+  const viewKey = plan.pipelineViews
+    .map((view) => [
+      view.id ?? "",
+      view.label,
+      view.source ?? "",
+      view.mode ?? "",
+      view.node ? `custom:${getCustomNodeKey(view.node)}` : "default",
+      view.scale ?? "",
+      view.bias ?? "",
+    ].join(":"))
+    .join("|")
+
+  return [
+    layout.mode,
+    layout.columns,
+    layout.rows,
+    layout.slots,
+    viewKey,
+    JSON.stringify(plan.sceneOutputs),
+    JSON.stringify(plan.materialDetailOutputs),
+    plan.usesWireframePass,
+    plan.usesLightingOnlyPass,
+    plan.usesReflectionOnlyPass,
+    plan.usesOverdrawPass,
+    plan.usesShaderCostPass,
+  ].join(";")
+}
+
+const customNodeKeys = new WeakMap<DebugNode, number>()
+let nextCustomNodeKey = 0
+
+function getCustomNodeKey(node: DebugNode) {
+  let key = customNodeKeys.get(node)
+  if (key === undefined) {
+    key = nextCustomNodeKey
+    nextCustomNodeKey += 1
+    customNodeKeys.set(node, key)
+  }
+
+  return key
 }
 
 function createShaderCostPass(
@@ -605,6 +883,30 @@ function createShaderCostPass(
   }
 
   return shaderCostPass
+}
+
+function createOverdrawPass(
+  scene: Scene,
+  camera: Camera,
+  resolutionScale: number,
+  overdrawOverride: OverdrawOverride | undefined,
+): OverdrawPass {
+  const overdrawPass = pass(scene, camera) as OverdrawPass
+  overdrawPass.setResolutionScale(resolutionScale)
+
+  const renderOriginalPass = overdrawPass.updateBefore.bind(overdrawPass)
+
+  overdrawPass.updateBefore = (frame: unknown) => {
+    const restore = overdrawOverride?.apply(scene)
+
+    try {
+      return renderOriginalPass(frame)
+    } finally {
+      restore?.restore()
+    }
+  }
+
+  return overdrawPass
 }
 
 function toWebGpuRenderer(renderer: unknown): WebGPURenderer {

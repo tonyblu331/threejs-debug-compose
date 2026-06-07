@@ -31,20 +31,11 @@ The runtime uses `three/webgpu`, `three/tsl`, WebGPU MRT passes, and fullscreen 
 ## Quick Start
 
 ```tsx
-import { DebugViews, useDebugViewsControls } from "threejs-debug-view/r3f"
-import { DEFAULT_DEBUG_VIEWS, getDebugViewLabels } from "threejs-debug-view"
+import { DebugViewLayer } from "threejs-debug-view/r3f"
 
 function DebugLayer() {
   if (!import.meta.env.DEV) return null
-  return <DebugControls />
-}
-
-function DebugControls() {
-  const controls = useDebugViewsControls({
-    viewLabels: getDebugViewLabels(DEFAULT_DEBUG_VIEWS),
-  })
-
-  return <DebugViews views={DEFAULT_DEBUG_VIEWS} {...controls} />
+  return <DebugViewLayer />
 }
 ```
 
@@ -52,7 +43,7 @@ Keep the overlay behind your app's dev flag. The package is publishable, but deb
 
 ## What It Shows
 
-Built-in debug sources include beauty, normal, depth, base color, material normal, emissive, roughness, AO, metallic, opacity, wireframe, lighting-only, reflection-only, and estimated shader complexity.
+Built-in debug sources include beauty, normal, depth, base color, material normal, emissive, roughness, AO, metallic, opacity, wireframe, lighting-only, reflection-only, overdraw, and estimated shader complexity.
 
 Material scalars are packed into one RGBA target:
 
@@ -61,9 +52,11 @@ Material scalars are packed into one RGBA target:
 - `B`: AO
 - `A`: opacity
 
-Material-normal and emissive use a second material-detail pass. Wireframe, lighting-only, reflection-only, and shader-cost views are created only when the active layout needs them.
+Material-normal uses a focused material-detail pass. Emissive shares the reusable scene pass with the packed material scalar views. Wireframe, lighting-only, reflection-only, overdraw, and shader-cost views are created only when the active layout needs them.
 
-`shaderCost` is an estimate, not a native GPU instruction counter. It buckets materials from runtime material signals such as material type, texture slots, texture resolution, transparency, alpha test, clipping, physical-material features, and custom shader uniform count.
+Roughness, metallic, AO, opacity, and emissive use shader-side defaults when a material does not support the property. The debug runtime does not patch scene materials to make a view compile. AO reads material-authored AO maps; it is not a screen-space AO buffer unless you provide one as a custom view or pass-backed source.
+
+`shaderCost` is an estimate, not a native GPU instruction counter. It scores materials through source-labeled shader-unit buckets such as ALU proxy work, texture samples, dependent texture risk, branch/discard pressure, bandwidth pressure, and confidence. In the demo, debug-only WebGPU timestamp queries can add a measured render-pass timing line; that timing is calibration evidence, not an ALU or occupancy counter.
 
 ## Render Modes
 
@@ -107,12 +100,13 @@ const fresnelView = createCustomDebugView({
 ```
 
 Use a stable `id` when a custom node can be recreated between React renders. The viewport render graph uses that id to dedupe equivalent custom views.
+The compose runtime also tracks custom node identity so replacing the node instance rebuilds the pipeline instead of keeping stale shader code.
 
 ## Project Shape
 
 - `components/debug-views/` is the package source.
 - `threejs-debug-view` exports debug view definitions, planning utilities, TSL helpers, and public types.
-- `threejs-debug-view/r3f` exports the R3F `DebugViews` component and Leva controls.
+- `threejs-debug-view/r3f` exports the batteries-included `DebugViewLayer`, the lower-level `DebugViews` component, and Leva controls.
 - `src/` is the local demo app.
 - `packages/docs/` is the Astro documentation site.
 

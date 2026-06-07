@@ -1,19 +1,21 @@
 import {
   float,
   directionToColor,
-  materialAO,
   materialColor,
-  materialEmissive,
-  materialMetalness,
   materialNormal,
   materialOpacity,
-  materialRoughness,
   mrt,
   normalView,
   output,
   vec4,
 } from "three/tsl"
 import type { DebugNode, FloatNode, Vec3Node, Vec4Node } from "./node-types"
+import {
+  safeMaterialAO,
+  safeMaterialEmissive,
+  safeMaterialMetalness,
+  safeMaterialRoughness,
+} from "./safe-material-nodes"
 
 interface DebugPass {
   getTextureNode(name?: string): DebugNode
@@ -34,12 +36,12 @@ export interface MaterialDebugChannels {
 export interface SceneDebugOutputs {
   normal?: boolean
   albedo?: boolean
+  emissive?: boolean
   material?: MaterialDebugChannels
 }
 
 export interface MaterialDetailOutputs {
   materialNormal?: boolean
-  emissive?: boolean
 }
 
 interface DefaultDebugNodeResolverOptions {
@@ -47,6 +49,7 @@ interface DefaultDebugNodeResolverOptions {
   wireframePass?: DebugPass
   lightingOnlyPass?: DebugPass
   reflectionOnlyPass?: DebugPass
+  overdrawPass?: DebugPass
   shaderCostPass?: DebugPass
 }
 
@@ -68,6 +71,10 @@ export function configureSceneDebugPass(
     mrtOutputs.albedo = toVec4(typedNode<Vec3Node>(materialColor).rgb)
   }
 
+  if (outputs.emissive) {
+    mrtOutputs.emissive = toVec4(safeMaterialEmissive.rgb)
+  }
+
   if (outputs.material) {
     mrtOutputs.material = createMaterialNode(outputs.material)
   }
@@ -85,10 +92,6 @@ export function configureMaterialDetailPass(
 
   if (outputs.materialNormal) {
     mrtOutputs.materialNormal = toVec4(directionToColor(typedNode<Vec3Node>(materialNormal)))
-  }
-
-  if (outputs.emissive) {
-    mrtOutputs.emissive = toVec4(typedNode<Vec3Node>(materialEmissive).rgb)
   }
 
   materialDetailPass.setMRT(mrt(mrtOutputs))
@@ -129,7 +132,7 @@ export function createDefaultDebugNodeResolver(
       case "normalMap":
         return cached(source, () => options.materialDetailPass?.getTextureNode("materialNormal") ?? BLACK)
       case "emissive":
-        return cached("emissive", () => options.materialDetailPass?.getTextureNode("emissive") ?? BLACK)
+        return cached("emissive", () => scenePass.getTextureNode("emissive"))
       case "roughness":
         return cached("roughness", () => packScalar(materialBuffer().r))
       case "metalness":
@@ -147,6 +150,11 @@ export function createDefaultDebugNodeResolver(
         return cached("lightingOnly", () => options.lightingOnlyPass?.getTextureNode("output") ?? BLACK)
       case "reflectionOnly":
         return cached("reflectionOnly", () => options.reflectionOnlyPass?.getTextureNode("output") ?? BLACK)
+      case "overdraw":
+        return cached(
+          "overdraw",
+          () => typedNode<Vec4Node>(options.overdrawPass?.getTextureNode("output") ?? BLACK).r,
+        )
       case "shaderCost":
         return cached(
           "shaderCost",
@@ -160,10 +168,10 @@ export function createDefaultDebugNodeResolver(
 
 function createMaterialNode(channels: MaterialDebugChannels): Vec4Node {
   return vec4(
-    channels.roughness ? typedNode<FloatNode>(materialRoughness) : float(0),
-    channels.metalness ? typedNode<FloatNode>(materialMetalness) : float(0),
-    channels.ao ? typedNode<FloatNode>(materialAO) : float(0),
-    channels.opacity ? typedNode<FloatNode>(materialOpacity) : float(1),
+    channels.roughness ? float(safeMaterialRoughness) : float(0),
+    channels.metalness ? float(safeMaterialMetalness) : float(0),
+    channels.ao ? float(safeMaterialAO) : float(0),
+    channels.opacity ? float(typedNode<FloatNode>(materialOpacity)) : float(1),
   )
 }
 

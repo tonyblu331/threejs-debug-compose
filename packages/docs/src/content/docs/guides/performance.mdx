@@ -1,0 +1,75 @@
+---
+title: Performance Model
+description: Understand which debug views are cheap, which views add passes, and how material channels stay honest.
+---
+
+Debug views should be cheap enough to leave mounted while you work. The package keeps that true by separating material-channel views from pass-backed views.
+
+## Cheap material channels
+
+The scene pass can pack several material diagnostics into one low-precision RGBA target:
+
+| Channel | Source | Fallback when unsupported |
+| --- | --- | --- |
+| `R` | `roughness` | `1` |
+| `G` | `metallic` / `metalness` | `0` |
+| `B` | `ao` | `1` |
+| `A` | `opacity` / `transparency` | `1` |
+
+These defaults are shader-side defaults. The runtime does not walk the scene to patch materials, and it does not fabricate temporary `aoMap`, `roughness`, `metalness`, or `emissive` properties.
+
+That matters because a debug view should not mutate the thing it is measuring. If a material has an AO map, the AO view reads it. If it does not, the view shows white, meaning no material AO contribution.
+
+:::note
+`ao` shows material-authored ambient occlusion. It does not show screen-space AO unless your app provides that as a custom view or a dedicated pass-backed source.
+:::
+
+## Reused single-view pipelines
+
+In `single` compose mode, switching between compatible built-in views reuses one runtime pipeline group instead of rebuilding a pass graph for every click.
+
+The reusable scene group includes:
+
+- `beauty`
+- `normal`
+- `depth`
+- `albedo` / `baseColor`
+- `emissive`
+- `roughness`
+- `ao`
+- `metallic` / `metalness`
+- `opacity` / `transparency`
+
+The material-detail group includes:
+
+- `materialNormal` / `normalMap`
+
+This avoids first-click stalls for common debug toggles while keeping the selected view narrow from the UI's point of view.
+
+The reusable scene pass keeps diagnostic outputs low precision. `emissive` gets its own low-precision scene target, while `roughness`, `metallic`, `ao`, and `opacity` stay packed in one material target. That avoids exceeding common WebGPU color-attachment byte limits when all compatible views are preconfigured together.
+
+## Pass-backed views
+
+Some views are intentionally not folded into the cheap material-channel path:
+
+| Source | Why it has its own pass |
+| --- | --- |
+| `wireframe` | Needs a wireframe override material. |
+| `lightingOnly` | Needs a neutral lighting override material. |
+| `reflectionOnly` | Needs a reflective override material. |
+| `overdraw` | Needs an alpha/overdraw diagnostic pass. |
+| `shaderCost` | Needs bucketed override materials based on material complexity signals. |
+
+These views render only when selected or visible in the active layout/viewport plan.
+
+## Custom node identity
+
+Custom TSL views participate in runtime keys by node identity. If React replaces a custom `node` instance, the compose pipeline rebuilds so the view does not keep rendering stale shader code.
+
+When equivalent custom views are recreated often, use `createCustomDebugView()` with a stable `id` so viewport render-graph deduping can treat them as the same logical view.
+
+## Prewarming
+
+Three's `PassNode.compileAsync()` can prewarm pass-backed views, but it should be applied carefully. Prewarming must happen after MRT setup and before rendering, without leaking override material or fallback state into the view being inspected.
+
+The current runtime avoids the bigger stall first: it keeps cheap material-channel switching on reusable pipelines and keeps pass-backed views isolated.

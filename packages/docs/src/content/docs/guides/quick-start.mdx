@@ -12,35 +12,43 @@ pnpm add threejs-debug-view three react react-dom @react-three/fiber @react-thre
 Use `threejs-debug-view/r3f` for React Three Fiber. The root package stays React-free.
 
 ```tsx
-import { DEFAULT_DEBUG_VIEWS } from "threejs-debug-view"
-import { DebugViews } from "threejs-debug-view/r3f"
+import { DebugViewLayer } from "threejs-debug-view/r3f"
 
 function DebugLayer() {
   if (!import.meta.env.DEV) return null
-  return <DebugControls />
-}
-
-function DebugControls() {
-  return (
-    <DebugViews
-      views={DEFAULT_DEBUG_VIEWS}
-      layout="single"
-      activeView={0}
-    />
-  )
+  return <DebugViewLayer />
 }
 ```
 
-For Leva controls, use the bundled hook from the same R3F entrypoint:
+For app-owned controls, use the lower-level component and bundled hook from the same R3F entrypoint:
 
 ```tsx
 import { DEFAULT_DEBUG_VIEWS, getDebugViewLabels } from "threejs-debug-view"
-import { useDebugViewsControls } from "threejs-debug-view/r3f"
+import { DebugViews, useDebugViewsControls } from "threejs-debug-view/r3f"
 
 const controls = useDebugViewsControls({
   viewLabels: getDebugViewLabels(DEFAULT_DEBUG_VIEWS),
 })
+
+<DebugViews views={DEFAULT_DEBUG_VIEWS} {...controls} />
 ```
+
+## View a specific source
+
+If you want to pin one view from your own UI, pass `activeView` to `DebugViews`:
+
+```tsx
+const emissiveView = DEFAULT_DEBUG_VIEWS.findIndex((view) => view.source === "emissive")
+
+<DebugViews
+  views={DEFAULT_DEBUG_VIEWS}
+  activeView={emissiveView}
+  layout="single"
+  showLabels
+/>
+```
+
+The demo uses this same pattern for capture URLs such as `?debugView=emissive`. It also supports `?scene=overdraw` to open the foliage overdraw scene instead of the main helmet/material-sphere scene.
 
 ## Verification
 

@@ -10,6 +10,8 @@ description: Choose between composed layouts and explicit viewport rendering.
 `compose` is the default mode. It renders the selected debug sources and uses one fullscreen TSL compositor for presentation.
 Use it for cheap switching, overlays, and simple layout inspection.
 
+In `single` presentation, compatible built-in views share reusable runtime pipeline groups. Switching between scene material channels such as roughness, AO, metallic, and opacity does not rebuild the whole debug runtime.
+
 Supported layouts:
 
 - `single`
@@ -47,3 +49,5 @@ Use it when callers need stable pane assignment, labels, per-pane cameras, or re
 ```
 
 `resolutionScale` is quantized to `1`, `0.5`, or `0.25` so render targets can be reused predictably instead of producing one-off VRAM allocations.
+
+For the pass cost model behind each view, see [Performance Model](/threejs-debug-view/guides/performance/).

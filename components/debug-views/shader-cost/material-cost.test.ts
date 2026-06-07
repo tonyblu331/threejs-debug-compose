@@ -57,23 +57,27 @@ describe("material complexity scoring", () => {
   })
 
   it("scores advanced PBR features higher than basic features", () => {
-    const cheap = new MeshStandardMaterial({ map: new DataTexture() })
-    const expensive = new MeshPhysicalMaterial({
+    const simple = new MeshStandardMaterial({ map: new DataTexture() })
+    const complex = new MeshPhysicalMaterial({
       transmission: 1,
       clearcoat: 1,
       transparent: true,
     })
 
-    const cheapResult = getMaterialComplexity(cheap)
-    const expensiveResult = getMaterialComplexity(expensive)
+    const simpleResult = getMaterialComplexity(simple)
+    const complexResult = getMaterialComplexity(complex)
 
-    expect(expensiveResult.cost).toBeGreaterThan(cheapResult.cost)
-    expect(expensiveResult.features).toMatchObject({
+    expect(complexResult.cost).toBeGreaterThan(simpleResult.cost)
+    expect(complexResult.features).toMatchObject({
+      aluOps: 58,
       physicalLobes: 2,
+      source: "material-proxy",
       transparencyMode: "transparent",
     })
-    expect(expensiveResult.signals).toContain("physical-lobes:2")
-    expect(expensiveResult.signals).toContain("transparency:transparent")
+    expect(complexResult.signals).toContain("alu-ops:58")
+    expect(complexResult.signals).toContain("physical-lobes:2")
+    expect(complexResult.signals).toContain("source:material-proxy")
+    expect(complexResult.signals).toContain("transparency:transparent")
   })
 
   it("enforces material hierarchy costs", () => {
@@ -107,6 +111,25 @@ describe("material complexity scoring", () => {
 
     expect(glass).toBeGreaterThan(plainPhysical)
     expect(glass).toBeLessThanOrEqual(1)
+  })
+
+  it("scores alpha-mapped foliage above simple textured bark", () => {
+    const bark = new MeshStandardMaterial({
+      map: new DataTexture(),
+      roughness: 0.86,
+    })
+    const foliage = new MeshStandardMaterial({
+      alphaMap: new DataTexture(),
+      depthWrite: false,
+      opacity: 0.72,
+      roughness: 0.78,
+      side: DoubleSide,
+      transparent: true,
+    })
+
+    expect(getMaterialComplexity(foliage).cost).toBeGreaterThan(
+      getMaterialComplexity(bark).cost,
+    )
   })
 
   it("invalidates cache when physical feature toggles change", () => {
@@ -146,6 +169,13 @@ describe("material complexity scoring", () => {
     const features = extractMaterialCostFeatures(material)
 
     expect(features.materialFamily).toBe("physical")
+    expect(features.aluOps).toBe(58)
+    expect(features.textureOps).toBe(1)
+    expect(features.dependentTextureOps).toBe(1)
+    expect(features.branchOps).toBe(2)
+    expect(features.source).toBe("material-proxy")
+    expect(features.confidence).toBeGreaterThan(0)
+    expect(features.confidence).toBeLessThan(1)
     expect(features.physicalLobes).toBe(2)
     expect(features.textureSlots).toBe(1)
     expect(features.dependentTextureRisk).toBe(1)
@@ -264,5 +294,27 @@ describe("material complexity scoring", () => {
 
     expect(complexCost).toBeGreaterThan(simpleCost)
     expect(getMaterialComplexity(complexShader).signals.some((s) => s.startsWith("custom-uniforms:"))).toBe(true)
+  })
+
+  it("reports shader-unit buckets instead of only material-class score", () => {
+    const material = new MeshStandardMaterial({
+      alphaMap: new DataTexture(),
+      map: new DataTexture(),
+      normalMap: new DataTexture(),
+      transparent: true,
+    })
+
+    const result = getMaterialComplexity(material)
+
+    expect(result.features).toMatchObject({
+      aluOps: 28,
+      textureOps: 3,
+      dependentTextureOps: 1,
+      branchOps: 1,
+      source: "material-proxy",
+    })
+    expect(result.signals).toContain("texture-ops:3")
+    expect(result.signals).toContain("dependent-texture-ops:1")
+    expect(result.signals).toContain("branch-ops:1")
   })
 })

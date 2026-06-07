@@ -19,7 +19,7 @@ Use the root package for core helpers and TSL view definitions. Use `threejs-deb
 
 ## R3F adapter
 
-The R3F adapter is the React UI layer. It mounts `DebugViews` in your canvas, reads the active R3F renderer, and exposes optional Leva controls through `useDebugViewsControls`.
+The R3F adapter is the React UI layer. `DebugViewLayer` mounts the default overlay in your canvas, reads the active R3F renderer, and wires the bundled Leva controls. Use `DebugViews` and `useDebugViewsControls` when your app needs to own that state.
 
 Keep it behind your app's dev flag unless you intentionally publish a debug surface.
 
@@ -37,14 +37,15 @@ Use the controls in the top-right panel to switch views, layouts, opacity, and p
 />
 
 :::note
-The demo needs browser WebGPU support. When native WebGPU is unavailable, the badge in the bottom-left reports the active fallback backend.
+The demo needs browser WebGPU support. When native WebGPU is unavailable, the app blocks startup instead of presenting a WebGL2 renderer as a valid debug backend.
 :::
 
 ## What it does
 
-- **Built-in sources** for beauty, normals, depth, albedo, roughness, AO, opacity, emissive, wireframe, and lighting-only output.
+- **Built-in sources** for beauty, normals, depth, albedo, roughness, AO, opacity, emissive, wireframe, lighting-only, reflection-only, and shader-cost output.
 - **Render layouts** for single, overlay, split, row, column, and grid presentations.
 - **Viewport mode** for fixed pane assignments, labels, per-pane cameras, and predictable resolution scaling.
+- **Reusable runtime pipelines** for common material-channel switching without material mutation.
 - **Custom TSL views** for shader-specific inspection without forking the built-in source list.
 - **R3F adapter** for mounting the overlay and optional Leva controls inside a React Three Fiber app.
 

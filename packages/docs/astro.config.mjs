@@ -29,6 +29,7 @@ export default defineConfig({
           items: [
             "guides/built-in-views",
             "guides/custom-debug-views",
+            "guides/performance",
             "guides/shader-cost-heatmap",
             "guides/viewport-labels",
           ],

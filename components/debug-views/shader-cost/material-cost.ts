@@ -12,6 +12,7 @@ import {
   ShaderMaterial,
   Texture,
 } from "three"
+import { applyShaderCostCalibration, type ShaderCostCalibration } from "./calibration"
 
 export interface MaterialCostEntry {
   cost: number
@@ -33,9 +34,23 @@ export type MaterialFamily =
   | "unknown"
 
 export type TransparencyMode = "opaque" | "alphaTest" | "transparent"
+export type ShaderCostSource = "compiled-shader" | "generated-wgsl" | "three-node-graph" | "material-proxy"
 
 export interface ShaderCostFeatures {
   materialFamily: MaterialFamily
+  aluOps: number
+  textureOps: number
+  dependentTextureOps: number
+  branchOps: number
+  discardOps: number
+  derivativeOps: number
+  transcendentalOps: number
+  interpolatorPressure: number
+  uniformPressure: number
+  precisionPressure: number
+  bandwidthPressure: number
+  source: ShaderCostSource
+  confidence: number
   textureSlots: number
   weightedTexelLoad: number
   dependentTextureRisk: number
@@ -54,8 +69,51 @@ export interface MaterialCostCache {
 }
 
 const MAX_CACHE_SIZE = 1000
-const REFERENCE_HIGH_COST = 18
+const REFERENCE_HIGH_SHADER_UNITS = 96
 const DEFAULT_TEXTURE_DIMENSION = 1024
+
+type ShaderUnitProfile = Pick<
+  ShaderCostFeatures,
+  | "aluOps"
+  | "textureOps"
+  | "dependentTextureOps"
+  | "branchOps"
+  | "discardOps"
+  | "derivativeOps"
+  | "transcendentalOps"
+  | "interpolatorPressure"
+  | "uniformPressure"
+  | "precisionPressure"
+  | "bandwidthPressure"
+  | "confidence"
+>
+
+const MATERIAL_SHADER_UNIT_PROFILES: Record<MaterialFamily, ShaderUnitProfile> = {
+  basic: profile({ aluOps: 1, confidence: 0.45 }),
+  lambert: profile({ aluOps: 6, interpolatorPressure: 1, confidence: 0.45 }),
+  matcap: profile({ aluOps: 4, textureOps: 1, interpolatorPressure: 1, confidence: 0.4 }),
+  phong: profile({ aluOps: 14, branchOps: 1, interpolatorPressure: 2, confidence: 0.45 }),
+  toon: profile({ aluOps: 12, branchOps: 1, interpolatorPressure: 2, confidence: 0.4 }),
+  standard: profile({ aluOps: 28, derivativeOps: 1, interpolatorPressure: 3, confidence: 0.5 }),
+  physical: profile({ aluOps: 42, branchOps: 1, derivativeOps: 1, interpolatorPressure: 4, confidence: 0.5 }),
+  node: profile({ aluOps: 20, branchOps: 1, interpolatorPressure: 2, confidence: 0.3 }),
+  shader: profile({ aluOps: 8, branchOps: 1, confidence: 0.2 }),
+  unknown: profile({ aluOps: 10, branchOps: 1, confidence: 0.2 }),
+}
+
+const SHADER_UNIT_WEIGHTS = {
+  aluOps: 1,
+  textureOps: 4,
+  dependentTextureOps: 2,
+  branchOps: 2,
+  discardOps: 3,
+  derivativeOps: 2,
+  transcendentalOps: 4,
+  interpolatorPressure: 0.5,
+  uniformPressure: 0.25,
+  precisionPressure: 1,
+  bandwidthPressure: 2,
+} as const
 
 const TEXTURE_SLOTS = [
   "map",
@@ -137,17 +195,34 @@ export function extractMaterialCostFeatures(material: Material): ShaderCostFeatu
     ? Object.keys(material.uniforms).length
     : 0
   const textureProfile = getTextureProfile(material)
+  const baseProfile = MATERIAL_SHADER_UNIT_PROFILES[materialFamily]
+  const branchOps = getBranchRisk(material, transparencyMode, customUniforms)
+  const discardOps = transparencyMode === "alphaTest" ? 1 : 0
+  const renderStateRisk = getRenderStateRisk(material)
 
   return {
     materialFamily,
+    aluOps: baseProfile.aluOps + physicalLobes * 8,
+    textureOps: baseProfile.textureOps + textureProfile.textureOps,
+    dependentTextureOps: baseProfile.dependentTextureOps + textureProfile.dependentTextureRisk,
+    branchOps: baseProfile.branchOps + branchOps,
+    discardOps: baseProfile.discardOps + discardOps,
+    derivativeOps: baseProfile.derivativeOps,
+    transcendentalOps: baseProfile.transcendentalOps + physicalLobes,
+    interpolatorPressure: baseProfile.interpolatorPressure + Math.min(4, textureProfile.slots * 0.5),
+    uniformPressure: baseProfile.uniformPressure + Math.min(8, customUniforms),
+    precisionPressure: baseProfile.precisionPressure,
+    bandwidthPressure: baseProfile.bandwidthPressure + textureProfile.bandwidthPressure + renderStateRisk,
+    source: "material-proxy",
+    confidence: baseProfile.confidence,
     textureSlots: textureProfile.slots,
     weightedTexelLoad: textureProfile.weightedTexelLoad,
     dependentTextureRisk: textureProfile.dependentTextureRisk,
     transparencyMode,
     physicalLobes,
-    branchRisk: getBranchRisk(material, transparencyMode, customUniforms),
-    discardRisk: transparencyMode === "alphaTest" ? 1 : 0,
-    renderStateRisk: getRenderStateRisk(material),
+    branchRisk: branchOps,
+    discardRisk: discardOps,
+    renderStateRisk,
     customUniforms,
   }
 }
@@ -162,16 +237,20 @@ export function predictMaterialCost(features: ShaderCostFeatures): number {
     return 0
   }
 
-  const programCost =
-    getFamilyCost(features.materialFamily) +
-    getTextureCost(features) +
-    features.physicalLobes * 1.15 +
-    features.branchRisk * 1.25 +
-    features.discardRisk * 1.75 +
-    features.renderStateRisk * 0.85 +
-    Math.min(2, features.customUniforms / 8)
+  const shaderUnitCost =
+    features.aluOps * SHADER_UNIT_WEIGHTS.aluOps +
+    features.textureOps * SHADER_UNIT_WEIGHTS.textureOps +
+    features.dependentTextureOps * SHADER_UNIT_WEIGHTS.dependentTextureOps +
+    features.branchOps * SHADER_UNIT_WEIGHTS.branchOps +
+    features.discardOps * SHADER_UNIT_WEIGHTS.discardOps +
+    features.derivativeOps * SHADER_UNIT_WEIGHTS.derivativeOps +
+    features.transcendentalOps * SHADER_UNIT_WEIGHTS.transcendentalOps +
+    features.interpolatorPressure * SHADER_UNIT_WEIGHTS.interpolatorPressure +
+    features.uniformPressure * SHADER_UNIT_WEIGHTS.uniformPressure +
+    features.precisionPressure * SHADER_UNIT_WEIGHTS.precisionPressure +
+    features.bandwidthPressure * SHADER_UNIT_WEIGHTS.bandwidthPressure
 
-  return clamp01(Math.log1p(programCost) / Math.log1p(REFERENCE_HIGH_COST))
+  return clamp01(shaderUnitCost / REFERENCE_HIGH_SHADER_UNITS)
 }
 
 function getMaterialFamily(material: Material): MaterialFamily {
@@ -185,29 +264,6 @@ function getMaterialFamily(material: Material): MaterialFamily {
   if (material instanceof MeshMatcapMaterial) return "matcap"
   if (material instanceof MeshBasicMaterial) return "basic"
   return "unknown"
-}
-
-function getFamilyCost(family: MaterialFamily): number {
-  switch (family) {
-    case "basic":
-      return 0.3
-    case "lambert":
-    case "matcap":
-      return 1.2
-    case "phong":
-    case "toon":
-      return 1.8
-    case "standard":
-      return 2.6
-    case "physical":
-      return 4.2
-    case "node":
-      return 2.8
-    case "shader":
-      return 2.4
-    case "unknown":
-      return 1.4
-  }
 }
 
 function getTransparencyMode(material: Material): TransparencyMode {
@@ -232,6 +288,8 @@ function getTextureProfile(material: Material) {
   let slots = 0
   let weightedTexelLoad = 0
   let dependentTextureRisk = 0
+  let textureOps = 0
+  let bandwidthPressure = 0
 
   for (const slot of TEXTURE_SLOTS) {
     const texture = getProperty<Texture | undefined>(material, slot)
@@ -241,13 +299,11 @@ function getTextureProfile(material: Material) {
     const resolutionWeight = getTextureResolutionWeight(texture)
     weightedTexelLoad += getTextureSlotCost(slot) * resolutionWeight
     dependentTextureRisk += getDependentTextureRisk(slot)
+    textureOps += getTextureOpCount(slot)
+    bandwidthPressure += Math.max(0, resolutionWeight - 1)
   }
 
-  return { dependentTextureRisk, slots, weightedTexelLoad }
-}
-
-function getTextureCost(features: ShaderCostFeatures): number {
-  return features.weightedTexelLoad + features.dependentTextureRisk * 0.8
+  return { bandwidthPressure, dependentTextureRisk, slots, textureOps, weightedTexelLoad }
 }
 
 function getTextureSlotCost(slot: string): number {
@@ -258,6 +314,10 @@ function getTextureSlotCost(slot: string): number {
 
 function getDependentTextureRisk(slot: string): number {
   return slot === "normalMap" || slot === "transmissionMap" ? 1 : 0
+}
+
+function getTextureOpCount(slot: string): number {
+  return slot === "envMap" || slot === "transmissionMap" ? 2 : 1
 }
 
 function getBranchRisk(
@@ -317,6 +377,18 @@ function createMaterialCostSignals(features: ShaderCostFeatures): string[] {
   }
 
   if (features.textureSlots > 0) signals.push(`textures:${features.textureSlots}`)
+  signals.push(`source:${features.source}`)
+  signals.push(`confidence:${roundSignal(features.confidence)}`)
+  signals.push(`alu-ops:${roundSignal(features.aluOps)}`)
+  if (features.textureOps > 0) signals.push(`texture-ops:${roundSignal(features.textureOps)}`)
+  if (features.dependentTextureOps > 0) {
+    signals.push(`dependent-texture-ops:${roundSignal(features.dependentTextureOps)}`)
+  }
+  if (features.branchOps > 0) signals.push(`branch-ops:${roundSignal(features.branchOps)}`)
+  if (features.discardOps > 0) signals.push(`discard-ops:${roundSignal(features.discardOps)}`)
+  if (features.bandwidthPressure > 0) {
+    signals.push(`bandwidth-pressure:${roundSignal(features.bandwidthPressure)}`)
+  }
   if (features.weightedTexelLoad > 0) {
     signals.push(`weighted-texel-load:${roundSignal(features.weightedTexelLoad)}`)
   }
@@ -423,8 +495,11 @@ export function getMaterialComplexityCacheSize(): number {
   return cache.size
 }
 
-export function scoreMaterialCost(material: Material): number {
-  return getMaterialComplexity(material).cost
+export function scoreMaterialCost(
+  material: Material,
+  calibration?: ShaderCostCalibration,
+): number {
+  return applyShaderCostCalibration(getMaterialComplexity(material).cost, calibration)
 }
 
 export function getMaterialCostSignature(material: Material): string {
@@ -451,4 +526,21 @@ function roundSignal(value: number): string {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
+}
+
+function profile(profile: Partial<ShaderUnitProfile> & Pick<ShaderUnitProfile, "aluOps" | "confidence">): ShaderUnitProfile {
+  return {
+    aluOps: profile.aluOps,
+    textureOps: profile.textureOps ?? 0,
+    dependentTextureOps: profile.dependentTextureOps ?? 0,
+    branchOps: profile.branchOps ?? 0,
+    discardOps: profile.discardOps ?? 0,
+    derivativeOps: profile.derivativeOps ?? 0,
+    transcendentalOps: profile.transcendentalOps ?? 0,
+    interpolatorPressure: profile.interpolatorPressure ?? 0,
+    uniformPressure: profile.uniformPressure ?? 0,
+    precisionPressure: profile.precisionPressure ?? 0,
+    bandwidthPressure: profile.bandwidthPressure ?? 0,
+    confidence: profile.confidence,
+  }
 }

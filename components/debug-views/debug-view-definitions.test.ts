@@ -23,6 +23,7 @@ describe("debug view definitions", () => {
       "wireframe",
       "lightingOnly",
       "reflectionOnly",
+      "overdraw",
       "shaderCost",
     ])
   })
@@ -53,28 +54,111 @@ describe("debug view definitions", () => {
     ])
   })
 
-  it("plans scalar material views as one low-precision packed attachment", () => {
+  it("keeps scalar material selection narrow but reuses the scene runtime pipeline", () => {
     const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 6, "single")
 
     expect(plan.views.map((view) => view.source)).toEqual(["roughness"])
-    expect(plan.sceneOutputs).toEqual({ material: { roughness: true } })
-    expect(plan.sceneTextureTypes).toEqual([{ name: "material", type: UnsignedByteType }])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual([
+      "beauty",
+      "normal",
+      "depth",
+      "albedo",
+      "emissive",
+      "roughness",
+      "ao",
+      "metallic",
+      "opacity",
+    ])
+    expect(plan.activePipelineView).toBe(5)
+    expect(plan.sceneOutputs).toEqual({
+      normal: true,
+      albedo: true,
+      emissive: true,
+      material: {
+        roughness: true,
+        ao: true,
+        metalness: true,
+        opacity: true,
+      },
+    })
+    expect(plan.sceneTextureTypes).toEqual([
+      { name: "normal", type: UnsignedByteType },
+      { name: "albedo", type: UnsignedByteType },
+      { name: "emissive", type: UnsignedByteType },
+      { name: "material", type: UnsignedByteType },
+    ])
     expect(plan.usesMaterialDetailPass).toBe(false)
   })
 
-  it("plans material-normal without allocating emissive output", () => {
+  it("selects AO inside the reusable scene runtime pipeline", () => {
+    const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 7, "single")
+
+    expect(plan.views.map((view) => view.source)).toEqual(["ao"])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual([
+      "beauty",
+      "normal",
+      "depth",
+      "albedo",
+      "emissive",
+      "roughness",
+      "ao",
+      "metallic",
+      "opacity",
+    ])
+    expect(plan.activePipelineView).toBe(6)
+    expect(plan.sceneOutputs).toEqual({
+      normal: true,
+      albedo: true,
+      emissive: true,
+      material: {
+        roughness: true,
+        ao: true,
+        metalness: true,
+        opacity: true,
+      },
+    })
+  })
+
+  it("keeps material-normal in its focused material-detail runtime pipeline", () => {
     const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 4, "single")
 
+    expect(plan.views.map((view) => view.source)).toEqual(["materialNormal"])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual(["materialNormal"])
+    expect(plan.activePipelineView).toBe(0)
     expect(plan.materialDetailOutputs).toEqual({ materialNormal: true })
     expect(plan.materialDetailTextureTypes).toEqual([
       { name: "materialNormal", type: UnsignedByteType },
     ])
   })
 
-  it("plans emissive without allocating material-normal output", () => {
+  it("selects emissive inside the reusable scene runtime pipeline", () => {
     const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 5, "single")
 
-    expect(plan.materialDetailOutputs).toEqual({ emissive: true })
+    expect(plan.views.map((view) => view.source)).toEqual(["emissive"])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual([
+      "beauty",
+      "normal",
+      "depth",
+      "albedo",
+      "emissive",
+      "roughness",
+      "ao",
+      "metallic",
+      "opacity",
+    ])
+    expect(plan.activePipelineView).toBe(4)
+    expect(plan.sceneOutputs).toEqual({
+      normal: true,
+      albedo: true,
+      emissive: true,
+      material: {
+        roughness: true,
+        ao: true,
+        metalness: true,
+        opacity: true,
+      },
+    })
+    expect(plan.materialDetailOutputs).toEqual({})
     expect(plan.materialDetailTextureTypes).toEqual([])
   })
 
@@ -82,6 +166,7 @@ describe("debug view definitions", () => {
     const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 11, "single")
 
     expect(plan.views.map((view) => view.source)).toEqual(["lightingOnly"])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual(["lightingOnly"])
     expect(plan.sceneOutputs).toEqual({})
     expect(plan.usesLightingOnlyPass).toBe(true)
     expect(plan.sceneTextureTypes).toEqual([])
@@ -99,14 +184,30 @@ describe("debug view definitions", () => {
     expect(plan.materialDetailTextureTypes).toEqual([])
   })
 
-  it("plans shader-cost as a dedicated heatmap pass", () => {
+  it("plans overdraw as a dedicated heatmap pass", () => {
     const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 13, "single")
 
+    expect(plan.views.map((view) => view.source)).toEqual(["overdraw"])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual(["overdraw"])
+    expect(plan.views[0].mode).toBe("heatmap")
+    expect(plan.sceneOutputs).toEqual({})
+    expect(plan.materialDetailOutputs).toEqual({})
+    expect(plan.usesOverdrawPass).toBe(true)
+    expect(plan.usesShaderCostPass).toBe(false)
+    expect(plan.sceneTextureTypes).toEqual([])
+    expect(plan.materialDetailTextureTypes).toEqual([])
+  })
+
+  it("plans shader-cost as a dedicated heatmap pass", () => {
+    const plan = createDebugRenderPlan(DEFAULT_DEBUG_VIEWS, 14, "single")
+
     expect(plan.views.map((view) => view.source)).toEqual(["shaderCost"])
+    expect(plan.pipelineViews.map((view) => view.source)).toEqual(["shaderCost"])
     expect(plan.views[0].mode).toBe("heatmap")
     expect(plan.sceneOutputs).toEqual({})
     expect(plan.materialDetailOutputs).toEqual({})
     expect(plan.usesShaderCostPass).toBe(true)
+    expect(plan.usesOverdrawPass).toBe(false)
     expect(plan.usesReflectionOnlyPass).toBe(false)
     expect(plan.sceneTextureTypes).toEqual([])
     expect(plan.materialDetailTextureTypes).toEqual([])

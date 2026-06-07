@@ -1,24 +1,79 @@
-import { Suspense, useRef } from "react"
-import { useFrame } from "@react-three/fiber"
-import { OrbitControls, useGLTF, useProgress, Html } from "@react-three/drei"
+import { Suspense, useMemo, useRef } from "react"
+import { useFrame, useLoader } from "@react-three/fiber"
+import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei"
 import { HdrEnvironment } from "./HdrEnvironment"
 import {
   DataTexture,
   DoubleSide,
+  Group,
+  IcosahedronGeometry,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  PlaneGeometry,
   RGBAFormat,
   RepeatWrapping,
+  SRGBColorSpace,
+  TextureLoader,
   UnsignedByteType,
-  type Group,
+  type Texture,
 } from "three"
 
-const DAMAGED_HELMET_URL = `${import.meta.env.BASE_URL}models/DamagedHelmet/glTF/DamagedHelmet.gltf`
+export type DemoSceneVariant = "main" | "overdraw"
 
-// Preload the model immediately when the module is parsed
-// This starts the fetch in parallel with everything else
+const DAMAGED_HELMET_URL = `${import.meta.env.BASE_URL}models/DamagedHelmet/glTF/DamagedHelmet.gltf`
+const textureRoot = `${import.meta.env.BASE_URL}textures/cliff_side`
+const vegetationRoot = `${import.meta.env.BASE_URL}textures/vegetation`
+
 useGLTF.preload(DAMAGED_HELMET_URL)
+
+const vegetationTexturePaths = [
+  `${vegetationRoot}/grassbushcc005.png`,
+  `${vegetationRoot}/grassbushcc006.png`,
+  `${vegetationRoot}/grassbushcc007.png`,
+  `${vegetationRoot}/grassbushcc008.png`,
+  `${vegetationRoot}/vegetation_fern_01.png`,
+] as const
+
+const shrubPlacements = [
+  { position: [-3.05, -0.9, -1.18] as const, scale: 0.98, rotation: -0.42, cards: 8 },
+  { position: [-2.18, -0.94, -0.72] as const, scale: 0.72, rotation: 0.25, cards: 5 },
+  { position: [-1.48, -0.91, -1.06] as const, scale: 1.18, rotation: -0.15, cards: 18 },
+  { position: [-1.32, -0.92, -1.0] as const, scale: 1.08, rotation: 0.46, cards: 16 },
+  { position: [-0.54, -0.96, -0.62] as const, scale: 0.78, rotation: 0.52, cards: 6 },
+  { position: [0.16, -0.93, -1.02] as const, scale: 1.22, rotation: -0.38, cards: 20 },
+  { position: [0.34, -0.94, -0.94] as const, scale: 1.08, rotation: 0.7, cards: 16 },
+  { position: [1.02, -0.96, -0.7] as const, scale: 0.76, rotation: 0.35, cards: 6 },
+  { position: [1.72, -0.91, -1.16] as const, scale: 1.16, rotation: 0.12, cards: 18 },
+  { position: [1.88, -0.92, -1.08] as const, scale: 1.02, rotation: -0.62, cards: 15 },
+  { position: [2.75, -0.94, -0.78] as const, scale: 0.82, rotation: -0.56, cards: 5 },
+  { position: [3.22, -0.93, -1.35] as const, scale: 0.96, rotation: 0.44, cards: 8 },
+] as const
+
+const grassPlacements = Array.from({ length: 58 }, (_, index) => {
+  const lane = index % 13
+  const row = Math.floor(index / 13)
+
+  return {
+    position: [
+      -3.65 + lane * 0.62 + Math.sin(index * 2.1) * 0.1,
+      -0.96,
+      0.04 - row * 0.34 + Math.cos(index * 1.7) * 0.09,
+    ] as const,
+    scale: 0.34 + (index % 5) * 0.06,
+    rotation: Math.sin(index * 1.31) * 0.72,
+  }
+})
+
+const rockPlacements = [
+  { position: [-3.2, -0.38, -2.18] as const, rotation: [0.08, -0.52, -0.16] as const, scale: [1.65, 1.34, 0.92] as const, seed: 3 },
+  { position: [-1.72, -0.2, -2.42] as const, rotation: [-0.04, 0.28, 0.08] as const, scale: [1.8, 1.65, 1.0] as const, seed: 9 },
+  { position: [-0.08, -0.08, -2.58] as const, rotation: [0.12, -0.18, -0.1] as const, scale: [1.9, 1.86, 1.05] as const, seed: 15 },
+  { position: [1.62, -0.18, -2.4] as const, rotation: [-0.08, 0.44, 0.12] as const, scale: [1.72, 1.52, 0.94] as const, seed: 21 },
+  { position: [3.05, -0.35, -2.2] as const, rotation: [0.06, 0.62, -0.08] as const, scale: [1.45, 1.28, 0.88] as const, seed: 27 },
+  { position: [-2.35, -0.72, -1.62] as const, rotation: [0.2, 0.18, -0.28] as const, scale: [0.92, 0.7, 0.66] as const, seed: 34 },
+  { position: [2.34, -0.74, -1.56] as const, rotation: [-0.12, -0.28, 0.16] as const, scale: [0.98, 0.72, 0.7] as const, seed: 41 },
+] as const
 
 function Loader() {
   const { progress } = useProgress()
@@ -37,24 +92,24 @@ function Loader() {
         </div>
         <div
           style={{
-            width: 160,
-            height: 4,
             background: "rgba(255,255,255,0.15)",
             borderRadius: 0,
+            height: 4,
             overflow: "hidden",
+            width: 160,
           }}
         >
           <div
             style={{
-              width: `${progress}%`,
-              height: "100%",
               background: "white",
               borderRadius: 0,
+              height: "100%",
               transition: "width 0.2s ease",
+              width: `${progress}%`,
             }}
           />
         </div>
-        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 8 }}>
+        <div style={{ fontSize: 12, marginTop: 8, opacity: 0.5 }}>
           {progress.toFixed(0)}%
         </div>
       </div>
@@ -75,20 +130,14 @@ function Helmet() {
 
 function createSolidTexture(r: number, g: number, b: number, a = 255, size = 512) {
   const data = new Uint8Array(size * size * 4)
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = r
-    data[i + 1] = g
-    data[i + 2] = b
-    data[i + 3] = a
+  for (let index = 0; index < data.length; index += 4) {
+    data[index] = r
+    data[index + 1] = g
+    data[index + 2] = b
+    data[index + 3] = a
   }
 
-  const texture = new DataTexture(
-    data,
-    size,
-    size,
-    RGBAFormat,
-    UnsignedByteType,
-  )
+  const texture = new DataTexture(data, size, size, RGBAFormat, UnsignedByteType)
   texture.wrapS = RepeatWrapping
   texture.wrapT = RepeatWrapping
   texture.needsUpdate = true
@@ -99,14 +148,14 @@ function createStripeTexture(size = 1024) {
   const data = new Uint8Array(size * size * 4)
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4
+      const index = (y * size + x) * 4
       const stripe = (Math.sin((x + y * 0.45) * 0.045) + 1) * 0.5
       const ring = (Math.sin(Math.hypot(x - size * 0.5, y - size * 0.45) * 0.04) + 1) * 0.5
       const value = 72 + stripe * 84 + ring * 28
-      data[i] = value
-      data[i + 1] = value
-      data[i + 2] = value
-      data[i + 3] = 255
+      data[index] = value
+      data[index + 1] = value
+      data[index + 2] = value
+      data[index + 3] = 255
     }
   }
 
@@ -122,12 +171,12 @@ function createNormalTexture(size = 1024) {
   const data = new Uint8Array(size * size * 4)
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4
+      const index = (y * size + x) * 4
       const ridge = Math.sin(x * 0.08) * Math.cos(y * 0.065)
-      data[i] = 128 + ridge * 42
-      data[i + 1] = 128 + Math.sin((x + y) * 0.04) * 32
-      data[i + 2] = 190
-      data[i + 3] = 255
+      data[index] = 128 + ridge * 42
+      data[index + 1] = 128 + Math.sin((x + y) * 0.04) * 32
+      data[index + 2] = 190
+      data[index + 3] = 255
     }
   }
 
@@ -154,51 +203,50 @@ const textureSet = {
 const costSamples = [
   {
     label: "Basic",
-    position: [-2.6, 0, 0] as const,
     material: new MeshBasicMaterial({
       color: "#f2f2f2",
       toneMapped: false,
     }),
+    position: [-2.6, 0, 0] as const,
   },
   {
     label: "Standard",
-    position: [-1.3, 0, 0] as const,
     material: new MeshStandardMaterial({
       color: "#bdbdbd",
-      roughness: 0.72,
       metalness: 0.05,
+      roughness: 0.72,
     }),
+    position: [-1.3, 0, 0] as const,
   },
   {
     label: "Mapped PBR",
-    position: [0, 0, 0] as const,
     material: new MeshStandardMaterial({
       color: "#d8d8d8",
       map: textureSet.albedo,
-      normalMap: textureSet.normal,
-      roughnessMap: textureSet.roughness,
-      metalnessMap: textureSet.metalness,
-      roughness: 0.55,
       metalness: 0.25,
+      metalnessMap: textureSet.metalness,
+      normalMap: textureSet.normal,
+      roughness: 0.55,
+      roughnessMap: textureSet.roughness,
     }),
+    position: [0, 0, 0] as const,
   },
   {
     label: "Layered",
-    position: [1.3, 0, 0] as const,
     material: new MeshPhysicalMaterial({
-      color: "#a6a6a6",
       clearcoat: 0.92,
       clearcoatMap: textureSet.clearcoat,
+      color: "#a6a6a6",
       envMapIntensity: 1.4,
       iridescence: 0.65,
       normalMap: textureSet.normal,
       roughness: 0.22,
       sheen: 0.7,
     }),
+    position: [1.3, 0, 0] as const,
   },
   {
     label: "POM stack",
-    position: [2.6, 0, 0] as const,
     material: new MeshPhysicalMaterial({
       alphaMap: textureSet.alpha,
       aoMap: textureSet.ao,
@@ -217,14 +265,198 @@ const costSamples = [
       opacity: 0.78,
       roughness: 0.16,
       roughnessMap: textureSet.roughness,
-      side: DoubleSide,
       sheen: 0.8,
+      side: DoubleSide,
+      transparent: true,
       transmission: 0.28,
       transmissionMap: textureSet.transmission,
-      transparent: true,
     }),
+    position: [2.6, 0, 0] as const,
   },
 ]
+
+function configureTiledTexture(texture: Texture, repeatX: number, repeatY: number) {
+  texture.wrapS = RepeatWrapping
+  texture.wrapT = RepeatWrapping
+  texture.repeat.set(repeatX, repeatY)
+  texture.needsUpdate = true
+  return texture
+}
+
+function createGroundGeometry() {
+  const geometry = new PlaneGeometry(8.8, 5.8, 88, 58)
+  const position = geometry.attributes.position
+
+  for (let index = 0; index < position.count; index++) {
+    const x = position.getX(index)
+    const y = position.getY(index)
+    const backSlope = Math.max(0, -y - 0.72)
+    const foregroundDip = Math.max(0, y - 1.12)
+    const height =
+      Math.sin(x * 1.35 + y * 1.9) * 0.055 +
+      Math.cos(x * 3.2 - y * 0.6) * 0.035 +
+      backSlope * 0.18 -
+      foregroundDip * 0.11
+    position.setZ(index, height)
+  }
+
+  position.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+function createRockGeometry(seed: number) {
+  const geometry = new IcosahedronGeometry(1, 4)
+  const position = geometry.attributes.position
+
+  for (let index = 0; index < position.count; index++) {
+    const x = position.getX(index)
+    const y = position.getY(index)
+    const z = position.getZ(index)
+    const strata = Math.sin(y * 8.5 + seed) * 0.11
+    const fracture = Math.sin((x + seed) * 7.1) * Math.cos((z - seed) * 5.8) * 0.09
+    const ledge = Math.round((y + 1) * 5) / 5 - y
+    const radius = 0.86 + strata + fracture + ledge * 0.28
+
+    position.setXYZ(
+      index,
+      x * radius * (1 + Math.sin(seed) * 0.08),
+      y * (0.9 + Math.cos(seed * 0.7) * 0.08),
+      z * radius * (0.78 + Math.sin(seed * 1.3) * 0.08),
+    )
+  }
+
+  position.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+function CliffEnvironment() {
+  const [cliffColor, cliffNormal, cliffRoughness] = useLoader(TextureLoader, [
+    `${textureRoot}/cliff_side_diff_1k.jpg`,
+    `${textureRoot}/cliff_side_nor_gl_1k.jpg`,
+    `${textureRoot}/cliff_side_rough_1k.jpg`,
+  ])
+  const groundGeometry = useMemo(createGroundGeometry, [])
+  const rockGeometries = useMemo(
+    () => rockPlacements.map((rock) => createRockGeometry(rock.seed)),
+    [],
+  )
+
+  const cliffMaterial = useMemo(() => {
+    cliffColor.colorSpace = SRGBColorSpace
+    configureTiledTexture(cliffColor, 1.15, 1.35)
+    configureTiledTexture(cliffNormal, 1.15, 1.35)
+    configureTiledTexture(cliffRoughness, 1.15, 1.35)
+
+    return new MeshStandardMaterial({
+      color: "#b89972",
+      map: cliffColor,
+      normalMap: cliffNormal,
+      roughnessMap: cliffRoughness,
+      roughness: 0.94,
+    })
+  }, [cliffColor, cliffNormal, cliffRoughness])
+
+  const groundMaterial = useMemo(() => {
+    const colorMap = cliffColor.clone()
+    const normalMap = cliffNormal.clone()
+    const roughnessMap = cliffRoughness.clone()
+
+    colorMap.colorSpace = SRGBColorSpace
+    configureTiledTexture(colorMap, 2.8, 2.2)
+    configureTiledTexture(normalMap, 2.8, 2.2)
+    configureTiledTexture(roughnessMap, 2.8, 2.2)
+
+    return new MeshStandardMaterial({
+      color: "#6d7846",
+      map: colorMap,
+      normalMap,
+      roughnessMap,
+      roughness: 0.9,
+    })
+  }, [cliffColor, cliffNormal, cliffRoughness])
+
+  return (
+    <>
+      <mesh geometry={groundGeometry} material={groundMaterial} position={[0, -1.05, -0.08]} rotation={[-Math.PI / 2, 0, 0]} />
+      {rockPlacements.map((rock, index) => (
+        <mesh
+          key={rock.seed}
+          geometry={rockGeometries[index]}
+          material={cliffMaterial}
+          position={rock.position}
+          rotation={rock.rotation}
+          scale={rock.scale}
+        />
+      ))}
+    </>
+  )
+}
+
+function ShrubCluster({
+  cards,
+  materials,
+  position,
+  rotation,
+  scale,
+}: {
+  cards: number
+  materials: readonly MeshStandardMaterial[]
+  position: readonly [number, number, number]
+  rotation: number
+  scale: number
+}) {
+  return (
+    <group position={position} rotation={[0, rotation, 0]} scale={scale}>
+      {Array.from({ length: cards }, (_, index) => {
+        const offset = index - cards * 0.5
+        const width = 0.72 + (index % 4) * 0.16
+        const height = 0.78 + (index % 5) * 0.14
+
+        return (
+          <mesh
+            key={index}
+            material={materials[index % materials.length]}
+            position={[offset * 0.04, 0.34 + (index % 4) * 0.025, -index * 0.012]}
+            rotation={[0.015 * index, index * 0.73, Math.sin(index) * 0.14]}
+            renderOrder={20 + index}
+          >
+            <planeGeometry args={[width, height, 5, 4]} />
+          </mesh>
+        )
+      })}
+    </group>
+  )
+}
+
+function GrassTuft({
+  geometry,
+  materials,
+  position,
+  rotation,
+  scale,
+}: {
+  geometry: PlaneGeometry
+  materials: readonly MeshStandardMaterial[]
+  position: readonly [number, number, number]
+  rotation: number
+  scale: number
+}) {
+  return (
+    <group position={position} rotation={[0, rotation, 0]} scale={scale}>
+      {[0, 1, 2].map((index) => (
+        <mesh
+          key={index}
+          geometry={geometry}
+          material={materials[(index + 4) % materials.length]}
+          rotation={[0, index * Math.PI / 3, 0]}
+          renderOrder={40 + index}
+        />
+      ))}
+    </group>
+  )
+}
 
 function ShaderCostSamples() {
   const group = useRef<Group>(null!)
@@ -265,25 +497,116 @@ function ShaderCostSamples() {
   )
 }
 
-export function Scene() {
+function FoliageOverdrawScene() {
+  const group = useRef<Group>(null)
+  const vegetationTextures = useLoader(TextureLoader, [...vegetationTexturePaths]) as Texture[]
+  const grassBladeGeometry = useMemo(() => new PlaneGeometry(0.34, 0.58, 2, 4), [])
+  const vegetationMaterials = useMemo(
+    () =>
+      vegetationTextures.map((texture) => {
+        texture.colorSpace = SRGBColorSpace
+        texture.needsUpdate = true
+
+        return new MeshStandardMaterial({
+          alphaMap: texture,
+          alphaTest: 0.035,
+          color: "#b7dc86",
+          depthWrite: false,
+          map: texture,
+          opacity: 1,
+          roughness: 0.78,
+          side: DoubleSide,
+          transparent: true,
+        })
+      }),
+    [vegetationTextures],
+  )
+
+  useFrame(({ clock }) => {
+    if (!group.current) return
+    group.current.rotation.y = Math.sin(clock.elapsedTime * 0.2) * 0.045
+    group.current.position.x = Math.sin(clock.elapsedTime * 0.17) * 0.04
+  })
+
+  return (
+    <group ref={group}>
+      <CliffEnvironment />
+      {shrubPlacements.map((shrub) => (
+        <ShrubCluster
+          key={`${shrub.position.join(",")}-${shrub.cards}`}
+          cards={shrub.cards}
+          materials={vegetationMaterials}
+          position={shrub.position}
+          rotation={shrub.rotation}
+          scale={shrub.scale}
+        />
+      ))}
+      {grassPlacements.map((grass, index) => (
+        <GrassTuft
+          key={index}
+          geometry={grassBladeGeometry}
+          materials={vegetationMaterials}
+          position={grass.position}
+          rotation={grass.rotation}
+          scale={grass.scale}
+        />
+      ))}
+    </group>
+  )
+}
+
+function EmissiveBeacon() {
+  return (
+    <mesh position={[-2.72, 0.42, 0]}>
+      <sphereGeometry args={[0.34, 48, 24]} />
+      <meshStandardMaterial
+        color="#061014"
+        emissive="#6ff7ff"
+        emissiveIntensity={4.2}
+        metalness={0.08}
+        roughness={0.36}
+      />
+    </mesh>
+  )
+}
+
+function MainDemoScene() {
   return (
     <>
+      <color attach="background" args={["#050505"]} />
       <ambientLight intensity={0.3} />
       <directionalLight
-        position={[5, 5, 5]}
-        intensity={2}
         castShadow
-        shadow-mapSize-width={1024}
+        intensity={2}
+        position={[5, 5, 5]}
         shadow-mapSize-height={1024}
+        shadow-mapSize-width={1024}
       />
-
       <OrbitControls enableDamping />
-
       <Suspense fallback={<Loader />}>
         <HdrEnvironment />
         <Helmet />
         <ShaderCostSamples />
+        <EmissiveBeacon />
       </Suspense>
     </>
   )
+}
+
+function OverdrawDemoScene() {
+  return (
+    <>
+      <color attach="background" args={["#121a14"]} />
+      <fog attach="fog" args={["#121a14", 4.4, 8.4]} />
+      <ambientLight intensity={0.58} />
+      <directionalLight position={[2.6, 4.2, 3.8]} intensity={2.35} />
+      <directionalLight color="#b7d7ff" position={[-3, 2, -2]} intensity={0.72} />
+      <OrbitControls enableDamping maxDistance={7} minDistance={2.2} target={[0, -0.28, -1.42]} />
+      <FoliageOverdrawScene />
+    </>
+  )
+}
+
+export function Scene({ variant = "main" }: { variant?: DemoSceneVariant }) {
+  return variant === "overdraw" ? <OverdrawDemoScene /> : <MainDemoScene />
 }

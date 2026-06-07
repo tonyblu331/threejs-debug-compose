@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest"
 import {
   BoxGeometry,
+  DataTexture,
+  DoubleSide,
   Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  RGBAFormat,
   Scene,
+  UnsignedByteType,
 } from "three"
 import {
   createShaderCostBucketMaterials,
@@ -54,7 +58,9 @@ describe("shader cost material override", () => {
     expect(restore.replacements).toBe(3)
     expect(override.materials).toContain(cheapMesh.material)
     expect(override.materials).toContain(mediumMesh.material)
-    expect(override.materials).toContain(expensiveMesh.material)
+    expect(override.materials).not.toContain(expensiveMesh.material)
+    expect((expensiveMesh.material as unknown as MeshBasicMaterial).opacity).toBe(1)
+    expect((expensiveMesh.material as unknown as MeshBasicMaterial).transparent).toBe(false)
     expect(new Set([cheapMesh.material, mediumMesh.material, expensiveMesh.material]).size)
       .toBeLessThanOrEqual(override.bucketCount)
 
@@ -86,6 +92,43 @@ describe("shader cost material override", () => {
     restore.restore()
 
     expect(mesh.material).toBe(materials)
+
+    override.dispose()
+  })
+
+  it("preserves alpha coverage state for shader cost replacements", () => {
+    const scene = new Scene()
+    const geometry = new BoxGeometry()
+    const alphaMap = new DataTexture(new Uint8Array([255, 255, 255, 128]), 1, 1, RGBAFormat, UnsignedByteType)
+    alphaMap.needsUpdate = true
+    const material = new MeshStandardMaterial({
+      alphaMap,
+      alphaTest: 0.42,
+      depthWrite: false,
+      opacity: 0.7,
+      side: DoubleSide,
+      transparent: true,
+    })
+    const mesh = new Mesh(geometry, material)
+    const override = createShaderCostOverride({ bucketCount: 4 })
+
+    scene.add(mesh)
+
+    const restore = override.apply(scene)
+    const replacement = mesh.material as unknown as MeshBasicMaterial
+
+    expect(replacement).not.toBe(material)
+    expect(replacement).not.toBe(override.materials[0])
+    expect(replacement.alphaMap).toBe(alphaMap)
+    expect(replacement.alphaTest).toBe(0.42)
+    expect(replacement.depthWrite).toBe(false)
+    expect(replacement.opacity).toBe(1)
+    expect(replacement.side).toBe(DoubleSide)
+    expect(replacement.transparent).toBe(false)
+
+    restore.restore()
+
+    expect(mesh.material).toBe(material)
 
     override.dispose()
   })

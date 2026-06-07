@@ -1,12 +1,4 @@
-import { useEffect } from "react"
 import { Leva } from "leva"
-import { useDebugViewsControls } from "@/components/debug-views/r3f"
-import type { DebugControlValues } from "./debug-control-values"
-
-interface DebugControlsProps {
-  onChange: (controls: DebugControlValues) => void
-  viewLabels: string[]
-}
 
 const neutralLevaTheme = {
   colors: {
@@ -32,23 +24,6 @@ const neutralLevaTheme = {
   },
 }
 
-export function DebugControls({ onChange, viewLabels }: DebugControlsProps) {
-  const controls = useDebugViewsControls({ viewLabels }) as DebugControlValues
-
-  useEffect(() => {
-    onChange(controls)
-  }, [
-    controls.activeView,
-    controls.columns,
-    controls.enabled,
-    controls.layout,
-    controls.mode,
-    controls.overlayOpacity,
-    controls.rows,
-    controls.showLabels,
-    controls.slots,
-    onChange,
-  ])
-
-  return <Leva collapsed={false} flat theme={neutralLevaTheme} />
+export function DebugControls() {
+  return <Leva collapsed={false} theme={neutralLevaTheme} />
 }

@@ -5,7 +5,12 @@ import type {
   MaterialDetailOutputs,
   SceneDebugOutputs,
 } from "./debug-views-tsl/default-debug-nodes"
-import type { DebugViewLayout, ResolvedDebugViewLayout } from "./debug-view-layout"
+import {
+  isResolvedDebugViewLayout,
+  resolveDebugViewLayout,
+  type DebugViewLayout,
+  type ResolvedDebugViewLayout,
+} from "./debug-view-layout"
 import { getDefaultDebugViewSource, selectPipelineViews } from "./debug-view-selection"
 
 export interface DebugTextureTypeOverride {
@@ -19,14 +24,16 @@ export interface TextureTypedDebugPass {
 
 export interface DebugRenderPlan {
   views: DebugView[]
+  pipelineViews: DebugView[]
+  activePipelineView: number
   sceneOutputs: SceneDebugOutputs
   materialDetailOutputs: MaterialDetailOutputs
   usesMaterialDetailPass: boolean
   usesWireframePass: boolean
   usesLightingOnlyPass: boolean
   usesReflectionOnlyPass: boolean
+  usesOverdrawPass: boolean
   usesShaderCostPass: boolean
-  usesAoFallback: boolean
   sceneTextureTypes: DebugTextureTypeOverride[]
   materialDetailTextureTypes: DebugTextureTypeOverride[]
 }
@@ -37,19 +44,27 @@ export function createDebugRenderPlan(
   layout: DebugViewLayout | ResolvedDebugViewLayout,
 ): DebugRenderPlan {
   const selectedViews = selectPipelineViews(views, activeView, layout)
-  const sceneOutputs = getSceneDebugOutputs(selectedViews)
-  const materialDetailOutputs = getMaterialDetailOutputs(selectedViews)
+  const { activePipelineView, pipelineViews } = selectRuntimePipelineViews(
+    views,
+    selectedViews,
+    activeView,
+    layout,
+  )
+  const sceneOutputs = getSceneDebugOutputs(pipelineViews)
+  const materialDetailOutputs = getMaterialDetailOutputs(pipelineViews)
 
   return {
     views: selectedViews,
+    pipelineViews,
+    activePipelineView,
     sceneOutputs,
     materialDetailOutputs,
     usesMaterialDetailPass: hasMaterialDetailOutputs(materialDetailOutputs),
-    usesWireframePass: usesDefaultSource(selectedViews, "wireframe"),
-    usesLightingOnlyPass: usesDefaultSource(selectedViews, "lightingOnly"),
-    usesReflectionOnlyPass: usesDefaultSource(selectedViews, "reflectionOnly"),
-    usesShaderCostPass: usesDefaultSource(selectedViews, "shaderCost"),
-    usesAoFallback: usesDefaultSource(selectedViews, "ao"),
+    usesWireframePass: usesDefaultSource(pipelineViews, "wireframe"),
+    usesLightingOnlyPass: usesDefaultSource(pipelineViews, "lightingOnly"),
+    usesReflectionOnlyPass: usesDefaultSource(pipelineViews, "reflectionOnly"),
+    usesOverdrawPass: usesDefaultSource(pipelineViews, "overdraw"),
+    usesShaderCostPass: usesDefaultSource(pipelineViews, "shaderCost"),
     sceneTextureTypes: getSceneTextureTypes(sceneOutputs),
     materialDetailTextureTypes: getMaterialDetailTextureTypes(materialDetailOutputs),
   }
@@ -78,6 +93,9 @@ function getSceneDebugOutputs(views: readonly DebugView[]): SceneDebugOutputs {
       case "albedo":
       case "baseColor":
         outputs.albedo = true
+        break
+      case "emissive":
+        outputs.emissive = true
         break
       case "roughness":
         material.roughness = true
@@ -114,9 +132,6 @@ function getMaterialDetailOutputs(views: readonly DebugView[]): MaterialDetailOu
       case "normalMap":
         outputs.materialNormal = true
         break
-      case "emissive":
-        outputs.emissive = true
-        break
     }
   }
 
@@ -128,6 +143,7 @@ function getSceneTextureTypes(outputs: SceneDebugOutputs): DebugTextureTypeOverr
 
   if (outputs.normal) overrides.push(lowPrecision("normal"))
   if (outputs.albedo) overrides.push(lowPrecision("albedo"))
+  if (outputs.emissive) overrides.push(lowPrecision("emissive"))
   if (outputs.material) overrides.push(lowPrecision("material"))
 
   return overrides
@@ -141,6 +157,69 @@ function getMaterialDetailTextureTypes(
 
 function lowPrecision(name: string): DebugTextureTypeOverride {
   return { name, type: UnsignedByteType }
+}
+
+function selectRuntimePipelineViews(
+  views: readonly DebugView[],
+  selectedViews: DebugView[],
+  activeView: number,
+  layout: DebugViewLayout | ResolvedDebugViewLayout,
+) {
+  if (views.length <= 1 || selectedViews.length !== 1 || isCustomView(selectedViews[0])) {
+    return { activePipelineView: 0, pipelineViews: selectedViews }
+  }
+
+  const resolvedLayout = isResolvedDebugViewLayout(layout) ? layout : resolveDebugViewLayout(layout)
+  if (resolvedLayout.presentation !== "single") {
+    return { activePipelineView: 0, pipelineViews: selectedViews }
+  }
+
+  const activeSource = getDefaultDebugViewSource(selectedViews[0])
+  const group = getReusablePipelineGroup(activeSource)
+
+  if (!group) {
+    return { activePipelineView: 0, pipelineViews: selectedViews }
+  }
+
+  const pipelineViews = views.filter((view) => {
+    if (isCustomView(view)) return false
+    return group.has(getDefaultDebugViewSource(view))
+  })
+  const clampedActiveView = Math.max(0, Math.min(activeView, views.length - 1))
+  const active = views[clampedActiveView]
+  const activePipelineView = Math.max(0, pipelineViews.indexOf(active))
+
+  return { activePipelineView, pipelineViews }
+}
+
+const SCENE_PIPELINE_GROUP = new Set<DebugViewSource>([
+  "beauty",
+  "normal",
+  "depth",
+  "albedo",
+  "baseColor",
+  "emissive",
+  "roughness",
+  "metalness",
+  "metallic",
+  "ao",
+  "opacity",
+  "transparency",
+] as const)
+
+const MATERIAL_DETAIL_PIPELINE_GROUP = new Set<DebugViewSource>([
+  "materialNormal",
+  "normalMap",
+] as const)
+
+function getReusablePipelineGroup(source: DebugViewSource) {
+  if (SCENE_PIPELINE_GROUP.has(source)) return SCENE_PIPELINE_GROUP
+  if (MATERIAL_DETAIL_PIPELINE_GROUP.has(source)) return MATERIAL_DETAIL_PIPELINE_GROUP
+  return undefined
+}
+
+function isCustomView(view: DebugView | undefined) {
+  return Boolean(view?.node)
 }
 
 function usesDefaultSource(views: readonly DebugView[], source: DebugViewSource) {
@@ -157,5 +236,5 @@ function hasMaterialChannels(channels: MaterialDebugChannels) {
 }
 
 function hasMaterialDetailOutputs(outputs: MaterialDetailOutputs) {
-  return Boolean(outputs.materialNormal || outputs.emissive)
+  return Boolean(outputs.materialNormal)
 }

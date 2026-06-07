@@ -3,6 +3,25 @@ title: API Reference
 description: Public types and helpers exposed by the debug view package.
 ---
 
+## `DebugViewLayer`
+
+Batteries-included R3F component for the default debug overlay and Leva controls.
+Import it from `threejs-debug-view/r3f`.
+
+```tsx
+<DebugViewLayer />
+```
+
+Use this for quick integration. Use `DebugViews` when your app owns the controls, layout state, custom view list, or viewport assignments.
+
+Important props:
+
+| Prop | Purpose |
+| --- | --- |
+| `views` | Optional custom view list. Defaults to `DEFAULT_DEBUG_VIEWS`. |
+| `viewLabels` | Optional labels passed to the bundled Leva controls. |
+| `maxLayoutSlots` | Optional upper bound for slots, rows, and columns in the controls. |
+
 ## `DebugViews`
 
 R3F component for presenting debug views inside a React Three Fiber `<Canvas>`.
@@ -54,7 +73,44 @@ interface DebugViewportView {
 
 `resolutionScale` is normalized to `1`, `0.5`, or `0.25`.
 
-Built-in `DebugViewSource` values include `shaderCost`, which uses `mode: "heatmap"` and reports estimated shader complexity. It is not a native GPU instruction counter.
+## Built-in Sources
+
+Built-in `DebugViewSource` values:
+
+| Source | Notes |
+| --- | --- |
+| `beauty` | Final scene color. |
+| `normal` | View-space geometry normals. |
+| `depth` | View-space depth visualization. |
+| `albedo` / `baseColor` | Base color without lighting. |
+| `materialNormal` / `normalMap` | Material-perturbed normals. |
+| `emissive` | Material emissive contribution. |
+| `roughness` | Packed material scalar, defaults to `1` when unsupported. |
+| `ao` | Packed material AO, defaults to `1` when unsupported. |
+| `metallic` / `metalness` | Packed material scalar, defaults to `0` when unsupported. |
+| `opacity` / `transparency` | Packed alpha scalar. |
+| `wireframe` | Override-material pass. |
+| `lightingOnly` | Neutral lighting override pass. |
+| `reflectionOnly` | Reflective override pass. |
+| `overdraw` | Heatmap-style overdraw diagnostic. |
+| `shaderCost` | Estimated shader-complexity heatmap from shader-unit buckets. |
+
+`shaderCost` is not a native GPU instruction counter. Demo timestamp timing is render-pass calibration metadata, not ALU/TEX/occupancy data.
+
+## Custom Views
+
+Use `createCustomDebugView()` when a custom TSL node may be recreated by React but should keep a stable logical identity:
+
+```ts
+const fresnel = createCustomDebugView({
+  id: "shader:fresnel",
+  label: "Fresnel",
+  node: fresnelNode,
+  mode: "passthrough",
+})
+```
+
+The compose runtime rebuilds when a custom node instance changes. The viewport render graph uses `id` to dedupe equivalent custom views.
 
 ## Package Shape
 
@@ -63,7 +119,7 @@ The package has two public entrypoints:
 | Entrypoint | Use it for |
 | --- | --- |
 | `threejs-debug-view` | Core helpers, built-in views, TSL compositor helpers, planning utilities, and public types. |
-| `threejs-debug-view/r3f` | The React Three Fiber overlay plus `useDebugViewsControls()` for Leva. |
+| `threejs-debug-view/r3f` | The batteries-included R3F layer, lower-level overlay, and optional `useDebugViewsControls()` hook for Leva. |
 
 The repository demo and docs are separate from the package source:
 
@@ -78,4 +134,5 @@ The repository demo and docs are separate from the package source:
 - `createDebugViewportRenderGraphPlan()`
 - `createDebugViewportLabels()`
 - `createDebugViewportRects()`
+- `DebugViewLayer` from `threejs-debug-view/r3f`
 - `useDebugViewsControls()` from `threejs-debug-view/r3f`

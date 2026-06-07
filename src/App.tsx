@@ -1,11 +1,8 @@
-import { lazy, Suspense, useState } from "react"
-import { getDebugViewLabels } from "@/components/debug-views"
+import { lazy, Suspense, useState, type CSSProperties } from "react"
 import { WebGpuCanvas } from "./components/WebGpuCanvas"
-import { DEFAULT_DEBUG_CONTROLS, type DebugControlValues } from "./components/debug-control-values"
-import { Scene } from "./components/Scene"
+import { Scene, type DemoSceneVariant } from "./components/Scene"
 
 const enableDebugOverlay = import.meta.env.DEV || import.meta.env.VITE_DEBUG_VIEW_DEMO === "true"
-const DEBUG_VIEW_LABELS = getDebugViewLabels()
 
 const DevDebugOverlay = enableDebugOverlay
   ? lazy(() =>
@@ -32,39 +29,56 @@ type RendererWithBackend = {
 
 function getBackendLabel(renderer: RendererWithBackend) {
   if (renderer.backend?.isWebGPUBackend) return "native WebGPU"
-  if (renderer.backend?.isWebGLBackend) return "WebGL2 fallback"
-  return "initializing"
+  if (renderer.backend?.isWebGLBackend) return "unsupported backend"
+  return "WebGPU required"
 }
 
 function BackendBadge({ label }: { label: string }) {
   return (
-    <div style={{
-      position: "fixed",
-      bottom: 12,
-      left: 12,
-      padding: "6px 12px",
-      background: "rgba(0,0,0,0.7)",
-      color: "#fff",
-      fontFamily: "monospace",
-      fontSize: 12,
-      borderRadius: 0,
-      pointerEvents: "none",
-      zIndex: 100,
-    }}>
+    <div style={backendBadgeStyle}>
       Three.js r184 · {label}
     </div>
   )
 }
 
+const backendBadgeStyle: CSSProperties = {
+  background: "rgba(0,0,0,0.7)",
+  borderRadius: 0,
+  bottom: 12,
+  color: "#fff",
+  fontFamily: "monospace",
+  fontSize: 12,
+  left: 12,
+  padding: "6px 12px",
+  pointerEvents: "none",
+  position: "fixed",
+  zIndex: 100,
+}
+
 export function App() {
   const [backend, setBackend] = useState("initializing")
+  const [sceneVariant, setSceneVariant] = useState<DemoSceneVariant>(() =>
+    new URLSearchParams(window.location.search).get("scene") === "overdraw" ? "overdraw" : "main",
+  )
+
+  function updateSceneVariant(variant: DemoSceneVariant) {
+    setSceneVariant(variant)
+    const url = new URL(window.location.href)
+    if (variant === "main") {
+      url.searchParams.delete("scene")
+    } else {
+      url.searchParams.set("scene", variant)
+    }
+    window.history.replaceState(null, "", url)
+  }
 
   return (
     <>
+      <SceneTabs active={sceneVariant} onChange={updateSceneVariant} />
       {enableDebugOverlay ? (
-        <DebugScene onBackendChange={setBackend} />
+        <DebugScene onBackendChange={setBackend} sceneVariant={sceneVariant} />
       ) : (
-        <DefaultScene onBackendChange={setBackend} />
+        <DefaultScene onBackendChange={setBackend} sceneVariant={sceneVariant} />
       )}
       <BackendBadge label={backend} />
     </>
@@ -73,49 +87,99 @@ export function App() {
 
 interface SceneShellProps {
   onBackendChange: (backend: string) => void
+  sceneVariant: DemoSceneVariant
 }
 
-function DefaultScene({ onBackendChange }: SceneShellProps) {
+function DefaultScene({ onBackendChange, sceneVariant }: SceneShellProps) {
   return (
     <WebGpuCanvas
       camera={{ position: [0, 0, 5.5], fov: 40 }}
       onCreated={({ gl }) => onBackendChange(getBackendLabel(gl as RendererWithBackend))}
+      onSupportChange={(support) => {
+        if (support === "unsupported") onBackendChange("WebGPU required")
+      }}
     >
       <Suspense fallback={null}>
-        <Scene />
+        <Scene variant={sceneVariant} />
       </Suspense>
     </WebGpuCanvas>
   )
 }
 
-function DebugScene({ onBackendChange }: SceneShellProps) {
-  const [debugControls, setDebugControls] = useState<DebugControlValues>(DEFAULT_DEBUG_CONTROLS)
-
+function DebugScene({ onBackendChange, sceneVariant }: SceneShellProps) {
   return (
     <>
       <WebGpuCanvas
         camera={{ position: [0, 0, 5.5], fov: 40 }}
         onCreated={({ gl }) => onBackendChange(getBackendLabel(gl as RendererWithBackend))}
+        onSupportChange={(support) => {
+          if (support === "unsupported") onBackendChange("WebGPU required")
+        }}
       >
         <Suspense fallback={null}>
-          <Scene />
-          {DevDebugOverlay ? (
-            <DevDebugOverlay
-              controls={debugControls}
-              viewLabels={DEBUG_VIEW_LABELS}
-            />
-          ) : null}
+          <Scene variant={sceneVariant} />
+          {DevDebugOverlay ? <DevDebugOverlay /> : null}
         </Suspense>
       </WebGpuCanvas>
 
       <Suspense fallback={null}>
-        {DevDebugControls ? (
-          <DevDebugControls
-            onChange={setDebugControls}
-            viewLabels={DEBUG_VIEW_LABELS}
-          />
-        ) : null}
+        {DevDebugControls ? <DevDebugControls /> : null}
       </Suspense>
     </>
   )
+}
+
+function SceneTabs({
+  active,
+  onChange,
+}: {
+  active: DemoSceneVariant
+  onChange: (variant: DemoSceneVariant) => void
+}) {
+  return (
+    <div aria-label="Demo scene" role="tablist" style={sceneTabsStyle}>
+      <button
+        aria-selected={active === "main"}
+        onClick={() => onChange("main")}
+        role="tab"
+        style={getSceneTabStyle(active === "main")}
+        type="button"
+      >
+        Main
+      </button>
+      <button
+        aria-selected={active === "overdraw"}
+        onClick={() => onChange("overdraw")}
+        role="tab"
+        style={getSceneTabStyle(active === "overdraw")}
+        type="button"
+      >
+        Overdraw
+      </button>
+    </div>
+  )
+}
+
+const sceneTabsStyle: CSSProperties = {
+  background: "rgba(0,0,0,0.72)",
+  border: "1px solid rgba(255,255,255,0.14)",
+  display: "flex",
+  gap: 0,
+  left: 12,
+  padding: 4,
+  position: "fixed",
+  top: 44,
+  zIndex: 101,
+}
+
+function getSceneTabStyle(active: boolean): CSSProperties {
+  return {
+    background: active ? "#f2f2f2" : "transparent",
+    border: 0,
+    color: active ? "#050505" : "#d8d8d8",
+    cursor: "pointer",
+    fontFamily: "monospace",
+    fontSize: 12,
+    padding: "7px 12px",
+  }
 }

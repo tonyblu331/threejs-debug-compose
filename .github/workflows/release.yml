@@ -40,6 +40,11 @@ jobs:
           package_file="$(pnpm pack --pack-destination . | tail -n 1)"
           echo "package_file=${package_file}" >> "$GITHUB_OUTPUT"
 
+      - name: Publish to npm
+        run: npm publish "${{ steps.pack.outputs.package_file }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:

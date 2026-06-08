@@ -105,8 +105,9 @@ The compose runtime also tracks custom node identity so replacing the node insta
 - `components/debug-views/` is the package source.
 - `threejs-debug-view` exports debug view definitions, planning utilities, TSL helpers, and public types.
 - `threejs-debug-view/r3f` exports the batteries-included `DebugViewLayer`, the lower-level `DebugViews` component, and Leva controls.
-- `src/` is the local demo app.
-- `packages/docs/` is the Astro documentation site.
+- `src/` is the local demo app only; it is not published to npm.
+- `packages/docs/` is the Astro documentation site and hosted demo build output; it is not published to npm.
+- The npm tarball ships only `dist/`, `LICENSE`, and `README.md`. Run `pnpm pack:check` before publishing.
 
 ## Verification
 

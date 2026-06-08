@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.5] - 2026-06-08
 
 ### Added
 - Click-to-sample shader cost inspector in the demo overlay with a centered viewport crosshair and legend marker synced to the clicked pixel.
 - `showEnabledControl` on `DebugViewLayer` to hide the Leva `Enabled` toggle when debug views should always stay mounted.
+- `pack:check` script to fail releases when the npm tarball includes demo, docs, or other non-library files.
 
 ### Changed
 - Renamed the built-in `shaderCost` label from **Estimated Shader Complexity** to **Shader Cost**.

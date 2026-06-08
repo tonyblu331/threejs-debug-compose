@@ -39,5 +39,8 @@ jobs:
       - name: Build package
         run: pnpm build
 
+      - name: Check npm pack surface
+        run: pnpm pack:check
+
       - name: Build docs
         run: pnpm docs:build

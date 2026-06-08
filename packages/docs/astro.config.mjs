@@ -42,7 +42,7 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          items: ["reference/api", "reference/deployment"],
+          items: ["reference/api", "reference/changelog", "reference/deployment"],
         },
       ],
     }),

@@ -22,7 +22,9 @@ function DebugLayer() {
 }
 ```
 
-That is the intended one-component integration path. See [Batteries Included](/threejs-debug-view/guides/batteries-included/) for the full split between `/r3f`, the React-free root export, and the unpublished demo app.
+That is the intended one-component integration path. Leva mounts on `document.body` automatically — you do not import or place `<Leva />` yourself unless you set `showLeva={false}` and use `DebugViewLeva` for custom shell placement.
+
+See [Batteries Included](/threejs-debug-view/guides/batteries-included/) for the full split between `/r3f`, the React-free root export, and the unpublished demo app.
 
 ## Bring your own controls
 

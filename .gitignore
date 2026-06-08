@@ -9,3 +9,5 @@ dist/
 packages/docs/.astro/
 packages/docs/dist/
 packages/docs/public/
+*.tgz
+test-results/

@@ -1,8 +1,10 @@
+import { useEffect } from "react"
 import {
   DEFAULT_DEBUG_VIEWS,
   getDebugViewLabels,
 } from "./debug-view-definitions"
 import { DebugViews, type DebugViewsProps } from "./debug-views-post"
+import { mountDebugViewLeva } from "./debug-view-leva"
 import {
   useDebugViewsControls,
   type DebugViewsControlValues,
@@ -31,6 +33,8 @@ export interface DebugViewLayerProps
   maxLayoutSlots?: number
   maxPaneCount?: number
   showEnabledControl?: boolean
+  /** Mount the bundled Leva control panel. Defaults to `true`. */
+  showLeva?: boolean
 }
 
 export function DebugViewLayer({
@@ -40,6 +44,7 @@ export function DebugViewLayer({
   maxLayoutSlots,
   maxPaneCount,
   showEnabledControl,
+  showLeva = true,
   ...props
 }: DebugViewLayerProps) {
   const controls = useDebugViewsControls({
@@ -48,6 +53,11 @@ export function DebugViewLayer({
     maxPaneCount: maxPaneCount ?? maxLayoutSlots,
     showEnabledControl,
   }) as DebugViewsControlValues
+
+  useEffect(() => {
+    if (!showLeva) return
+    return mountDebugViewLeva()
+  }, [showLeva])
 
   return (
     <DebugViews

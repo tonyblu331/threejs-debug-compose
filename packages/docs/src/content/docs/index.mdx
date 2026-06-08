@@ -33,11 +33,11 @@ import { DebugViewLayer } from "threejs-debug-view/r3f"
 <DebugViewLayer />
 ```
 
-That one component mounts the overlay, wires Leva controls, and registers the built-in debug sources. See [Batteries Included](/threejs-debug-view/guides/batteries-included/) for what ships out of the box, what stays optional, and what never lands on npm.
+That one component mounts the overlay, wires Leva controls on `document.body` (outside the R3F tree), and registers the built-in debug sources — no separate `<Leva />` import. See [Batteries Included](/threejs-debug-view/guides/batteries-included/) for what ships out of the box, what stays optional, and what never lands on npm.
 
 ## R3F adapter
 
-The R3F adapter is the React UI layer. `DebugViewLayer` mounts the default overlay in your canvas, reads the active R3F renderer, and wires the bundled Leva controls. Use `DebugViews` and `useDebugViewsControls` when your app needs to own that state.
+The R3F adapter is the React UI layer. `DebugViewLayer` mounts the default overlay inside your canvas, reads the active R3F renderer, and portals the bundled Leva panel to `document.body`. Use `DebugViews` and `useDebugViewsControls` when your app needs to own control state instead.
 
 Keep it behind your app's dev flag unless you intentionally publish a debug surface.
 

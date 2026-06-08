@@ -1,0 +1,49 @@
+---
+title: Changelog
+description: Release history for threejs-debug-view. The canonical log also lives in the repository CHANGELOG.md.
+---
+
+This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+[View the full changelog on GitHub](https://github.com/tonyblu331/threejs-debug-view/blob/master/CHANGELOG.md)
+
+## [0.2.8] — 2026-06-08
+
+### Added
+- `DebugViewLeva`, `mountDebugViewLeva`, and `DEBUG_VIEW_LEVA_THEME` on `threejs-debug-view/r3f`.
+- `showLeva` on `DebugViewLayer` (default `true`).
+- Unit tests for the batteries-included R3F export surface.
+
+### Fixed
+- `DebugViewLayer` mounts the Leva control panel as documented; no separate `<Leva />` import on the default path.
+- Leva portals to `document.body` so SVG UI never enters the R3F reconciler.
+
+### Changed
+- Repo demo dogfoods `threejs-debug-view/r3f`; standalone `DebugControls` removed.
+- Docs describe body-portal Leva, `showLeva`, and custom placement.
+- Library build externalizes `react-dom` (~22 kB published gzip).
+
+## [0.2.7] — 2026-06-08
+
+### Added
+- Package logo and Starlight [Batteries Included](/threejs-debug-view/guides/batteries-included/) guide.
+
+### Changed
+- README and docs homepage lead with batteries-included positioning.
+
+## [0.2.6] — 2026-06-08
+
+### Fixed
+- Replaced broken Bundlephobia badge with a measured library gzip badge.
+
+## [0.2.5] — 2026-06-08
+
+### Added
+- Click-to-sample shader cost inspector in the demo.
+- `showEnabledControl` on `DebugViewLayer`.
+- `pack:check` guard for npm tarball contents.
+
+### Changed
+- Shader cost label shortened to **Shader Cost**.
+- Separate overlap and shader-cost legend UI.
+- Release workflow publishes to GitHub Packages.

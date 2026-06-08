@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-06-08
+
+### Added
+- `DebugViewLeva`, `mountDebugViewLeva`, and `DEBUG_VIEW_LEVA_THEME` on `threejs-debug-view/r3f` for optional custom Leva placement.
+- `showLeva` prop on `DebugViewLayer` (defaults to `true`) to disable the bundled panel when mounting `DebugViewLeva` yourself.
+- Unit tests covering the batteries-included R3F export surface.
+
+### Fixed
+- `DebugViewLayer` now mounts the Leva control panel as documented; consumers no longer need a separate `<Leva />` import for the default integration path.
+- Leva is portaled to `document.body` so SVG UI never enters the React Three Fiber reconciler tree (`R3F: Svg is not part of the THREE namespace`).
+
+### Changed
+- The repo demo dogfoods `threejs-debug-view/r3f` via dev aliases and removes the standalone `DebugControls` shell component.
+- README and Starlight docs describe body-portal Leva behavior, `showLeva`, and the custom-placement pattern.
+- Library build externalizes `react-dom` so the published gzip surface remains peer-driven (~22 kB).
+
 ## [0.2.7] - 2026-06-08
 
 ### Added

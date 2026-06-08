@@ -1,12 +1,10 @@
 import { useMemo } from "react"
+import { DebugViewLayer } from "threejs-debug-view/r3f"
 import {
   DEFAULT_DEBUG_VIEWS,
   getDebugViewLabels,
   type DebugView,
-} from "@/components/debug-views"
-import {
-  DebugViewLayer,
-} from "../../components/debug-views/r3f"
+} from "threejs-debug-view"
 
 const VIEW_LABELS = getDebugViewLabels()
 export function DebugOverlay({ debugViewSource }: { debugViewSource?: string | null }) {

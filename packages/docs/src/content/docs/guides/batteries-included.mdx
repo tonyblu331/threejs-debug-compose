@@ -31,11 +31,27 @@ function DebugLayer() {
 | Included | What it gives you |
 | --- | --- |
 | `DEFAULT_DEBUG_VIEWS` | Beauty, normals, depth, material channels, wireframe, lighting-only, reflection-only, overlap, and shader cost. |
-| Leva controls | View picker, layout presets, pane assignments, labels, blend opacity, and diagonal angle controls. |
+| Leva controls | View picker, layout presets, pane assignments, labels, blend opacity, and diagonal angle controls. `DebugViewLayer` mounts the panel on `document.body` by default so it stays outside the R3F canvas tree. |
 | `DebugViews` runtime | WebGPU MRT passes, TSL compositor, viewport/scissor routing, and demand-driven override passes. |
 | Demo-friendly defaults | The demo hides the Leva `Enabled` toggle via `showEnabledControl={false}` because the overlay is always on in that app. |
 
-That is the intended “drop one component into your canvas” path.
+That is the intended “drop one component into your canvas” path. You do not need a separate `<Leva />` import unless you set `showLeva={false}` and mount `DebugViewLeva` yourself.
+
+## Custom Leva placement
+
+Use this when the control panel should live outside the canvas tree but still share the same Leva store:
+
+```tsx
+import { DebugViewLayer, DebugViewLeva } from "threejs-debug-view/r3f"
+
+<>
+  <Canvas>
+    <Scene />
+    <DebugViewLayer showLeva={false} />
+  </Canvas>
+  <DebugViewLeva />
+</>
+```
 
 ## Bring your own controls
 
@@ -104,4 +120,4 @@ It validates the product surface. It is not something consumers install from npm
 | Non-React tooling or custom runtime | root `threejs-debug-view` exports |
 | Try layouts and diagnostics interactively | [Live demo](/threejs-debug-view/demo/) |
 
-See [Quick Start](/threejs-debug-view/guides/quick-start/) for install steps and [API Reference](/threejs-debug-view/reference/api/) for prop-level detail.
+See [Quick Start](/threejs-debug-view/guides/quick-start/) for install steps, [API Reference](/threejs-debug-view/reference/api/) for prop-level detail, and [Changelog](/threejs-debug-view/reference/changelog/) for release history.

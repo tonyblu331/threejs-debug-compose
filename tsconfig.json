@@ -17,7 +17,9 @@
     "jsx": "react-jsx",
     "types": ["vite/client"],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "threejs-debug-view": ["./components/debug-views/index.ts"],
+      "threejs-debug-view/r3f": ["./components/debug-views/r3f.ts"]
     }
   },
   "include": ["src", "components", "vite.config.ts"],

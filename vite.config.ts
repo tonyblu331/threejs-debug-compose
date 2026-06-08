@@ -5,12 +5,16 @@ import { dirname, resolve } from "node:path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+const packageAliases = {
+  "@": __dirname,
+  "threejs-debug-view/r3f": resolve(__dirname, "components/debug-views/r3f.ts"),
+  "threejs-debug-view": resolve(__dirname, "components/debug-views/index.ts"),
+}
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@": __dirname,
-    },
+    alias: packageAliases,
   },
   build: {
     copyPublicDir: false,
@@ -27,6 +31,8 @@ export default defineConfig({
         "@react-three/fiber",
         "leva",
         "react",
+        "react-dom",
+        "react-dom/client",
         "react/jsx-runtime",
         "three",
         "three/tsl",

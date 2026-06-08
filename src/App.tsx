@@ -12,14 +12,6 @@ const DevDebugOverlay = enableDebugOverlay
     )
   : null
 
-const DevDebugControls = enableDebugOverlay
-  ? lazy(() =>
-      import("./components/DebugControls").then(({ DebugControls }) => ({
-        default: DebugControls,
-      })),
-    )
-  : null
-
 type RendererWithBackend = {
   backend?: {
     isWebGPUBackend?: boolean
@@ -125,24 +117,18 @@ function DefaultScene({ onBackendChange, sceneVariant }: SceneShellProps) {
 
 function DebugScene({ debugViewSource, onBackendChange, sceneVariant }: SceneShellProps) {
   return (
-    <>
-      <WebGpuCanvas
-        camera={{ position: [0, 0, 5.5], fov: 40 }}
-        onCreated={({ gl }) => onBackendChange(getBackendLabel(gl as RendererWithBackend))}
-        onSupportChange={(support) => {
-          if (support === "unsupported") onBackendChange("WebGPU required")
-        }}
-      >
-        <Suspense fallback={null}>
-          <Scene variant={sceneVariant} />
-          {DevDebugOverlay ? <DevDebugOverlay debugViewSource={debugViewSource} /> : null}
-        </Suspense>
-      </WebGpuCanvas>
-
+    <WebGpuCanvas
+      camera={{ position: [0, 0, 5.5], fov: 40 }}
+      onCreated={({ gl }) => onBackendChange(getBackendLabel(gl as RendererWithBackend))}
+      onSupportChange={(support) => {
+        if (support === "unsupported") onBackendChange("WebGPU required")
+      }}
+    >
       <Suspense fallback={null}>
-        {DevDebugControls ? <DevDebugControls /> : null}
+        <Scene variant={sceneVariant} />
+        {DevDebugOverlay ? <DevDebugOverlay debugViewSource={debugViewSource} /> : null}
       </Suspense>
-    </>
+    </WebGpuCanvas>
   )
 }
 

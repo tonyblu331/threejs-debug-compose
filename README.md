@@ -8,8 +8,6 @@ Small debug views for Three.js WebGPU + TSL render pipelines.
 
 It lets you inspect what your scene is producing while you build: beauty, normals, depth, material channels, override views, and estimated shader complexity. It is focused on WebGPU debugging, not on being a full scene inspector.
 
-![threejs-debug-view composed viewport banner](https://raw.githubusercontent.com/tonyblu331/threejs-debug-view/master/assets/readme-debug-view-banner.png)
-
 ## Install
 
 ```bash

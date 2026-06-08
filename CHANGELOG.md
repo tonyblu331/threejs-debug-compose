@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-06-08
+
+### Changed
+- Removed README image dependencies from the published package.
+
+## [0.2.3] - 2026-06-08
+
+### Changed
+- Reduced the published npm package by excluding non-runtime image assets.
+
+## [0.2.2] - 2026-06-08
+
+### Added
+- Added diagonal split layouts, including a four-pane `breakdown` layout for material review views.
+- Added Leva controls for diagonal layout angle and breakdown pane assignments.
+
+### Fixed
+- Improved composed layout routing for pane assignments and diagonal presentations.
+- Stabilized demo asset loading for the live documentation demo.
+
 ## [0.2.1] - 2026-06-05
 
 ### Added

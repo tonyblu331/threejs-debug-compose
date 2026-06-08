@@ -1,6 +1,6 @@
 {
   "name": "threejs-debug-view",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Batteries-included TSL debug views for Three.js WebGPU render pipelines.",
   "license": "MIT",
   "type": "module",
@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "capture:social": "node scripts/capture-social-overlap-breakdown.mjs",
     "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm pack:check && pnpm docs:build",
     "pack:check": "node scripts/check-pack-contents.mjs",
     "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build && pnpm pack:check",

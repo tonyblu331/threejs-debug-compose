@@ -1,6 +1,8 @@
 import { Suspense, useMemo, useRef } from "react"
 import { useFrame, useLoader } from "@react-three/fiber"
 import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei"
+import { isSocialCapture } from "../demo/capture-mode"
+import { CaptureCamera } from "./CaptureCamera"
 import { HdrEnvironment } from "./HdrEnvironment"
 import {
   DataTexture,
@@ -583,7 +585,8 @@ function MainDemoScene() {
         shadow-mapSize-height={1024}
         shadow-mapSize-width={1024}
       />
-      <OrbitControls enableDamping />
+      <OrbitControls enableDamping makeDefault />
+      {isSocialCapture() ? <CaptureCamera variant="main" /> : null}
       <Suspense fallback={<Loader />}>
         <HdrEnvironment />
         <Helmet />
@@ -601,7 +604,8 @@ function OverdrawDemoScene() {
       <ambientLight intensity={0.58} />
       <directionalLight position={[2.6, 4.2, 3.8]} intensity={2.35} />
       <directionalLight color="#b7d7ff" position={[-3, 2, -2]} intensity={0.72} />
-      <OrbitControls enableDamping maxDistance={7} minDistance={2.2} target={[0, -0.28, -1.42]} />
+      <OrbitControls enableDamping makeDefault maxDistance={7} minDistance={2.2} target={[0, -0.28, -1.42]} />
+      {isSocialCapture() ? <CaptureCamera variant="overdraw" /> : null}
       <FoliageOverdrawScene />
     </>
   )

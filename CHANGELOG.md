@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2026-06-08
+
+### Added
+- Breakdown label anchoring helpers: `createPresentationLabelRegions`, `breakdownBandSpan`, and `canvasHudPosition` for DOM overlays aligned to WebGPU `screenUV`.
+- Configurable pane divider styling via `lineWidth`, `edgeColor`, and `coreColor` (shared `debug-divider-style` module).
+- Repo social capture preset (`?capture=social`) with Playwright script `pnpm capture:social`.
+
+### Fixed
+- Diagonal and breakdown viewport labels now track compositor bands (WebGPU Y axis + canvas-centered HUD positioning instead of world-origin projection).
+- `DebugViewLayer` with `showLeva={false}` skips Leva registration for headless capture flows.
+
+### Changed
+- Built-in `shaderCost` label renamed to **Shader Complexity**; idle legend note reads **shader complexity**.
+- Breakdown label cells center on band midpoints with `translateX(-50%)`.
+
 ## [0.2.9] - 2026-06-08
 
 ### Added

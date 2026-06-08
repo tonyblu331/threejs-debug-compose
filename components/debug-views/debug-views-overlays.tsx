@@ -1,5 +1,6 @@
-import { useMemo, type CSSProperties } from "react"
+import { useMemo, type CSSProperties, type ReactNode } from "react"
 import { Html } from "@react-three/drei"
+import type { Camera, Object3D } from "three"
 import {
   createDebugViewportLabels,
   createDebugViewportPlanLabels,
@@ -7,6 +8,7 @@ import {
 } from "./debug-viewport-labels"
 import type { DebugViewportPlan } from "./debug-viewport-plan"
 import type { ResolvedDebugViewLayout } from "./debug-view-layout"
+import { createPresentationLabelRegions } from "./debug-viewport-label-anchors"
 import type { DebugView } from "./debug-views-tsl/compositor"
 
 export interface ShaderCostSample {
@@ -34,21 +36,38 @@ export function DebugViewportLabelOverlay({
       : createDebugViewportLabels(views, layout, labels),
     [views, layout, labels, viewportPlan],
   )
-  const labelGridStyle = useMemo(
-    () => createLabelGridStyle(layout),
+  const labelRegions = useMemo(
+    () => createPresentationLabelRegions(layout),
     [layout],
   )
+  const labelGridStyle = useMemo(
+    () => (labelRegions ? presentationLabelContainerStyle : createLabelGridStyle(layout)),
+    [labelRegions, layout],
+  )
 
-  if (viewportLabels.length === 0) return null
+  const labelsToRender = useMemo(() => {
+    if (!labelRegions) return viewportLabels
+    return viewportLabels.slice(0, labelRegions.length)
+  }, [labelRegions, viewportLabels])
+
+  if (labelsToRender.length === 0) return null
 
   return (
-    <Html fullscreen style={htmlOverlayStyle}>
+    <Html fullscreen calculatePosition={canvasHudPosition} style={htmlOverlayStyle}>
       <div aria-hidden="true" style={labelGridStyle}>
-        {viewportLabels.map((label, index) => (
-          <div key={`${index}:${label}`} style={labelCellStyle}>
-            <span style={viewportLabelStyle}>{label}</span>
-          </div>
-        ))}
+        {labelsToRender.map((label, index) => {
+          const region = labelRegions && index < labelRegions.length
+            ? labelRegions[index]
+            : undefined
+          return (
+            <div
+              key={`${index}:${label}`}
+              style={region ? bandLabelCellStyle(region) : labelCellStyle}
+            >
+              <span style={viewportLabelStyle}>{label}</span>
+            </div>
+          )
+        })}
       </div>
     </Html>
   )
@@ -62,7 +81,7 @@ export function ShaderCostLegendOverlay({
   const sampleCost = sample?.cost ?? null
 
   return (
-    <Html fullscreen style={htmlOverlayStyle}>
+    <Html fullscreen calculatePosition={canvasHudPosition} style={htmlOverlayStyle}>
       {sample ? (
         <div
           aria-hidden="true"
@@ -79,58 +98,113 @@ export function ShaderCostLegendOverlay({
       ) : null}
       <div aria-hidden="true" style={legendOverlayStyle}>
         <div style={legendPanelStyle}>
-          <span style={legendLabelStyle}>low shader work</span>
-          <ShaderCostLegendRamp sampleCost={sampleCost} />
-          <span style={legendLabelStyle}>high shader work</span>
-        </div>
-        <div style={legendNoteStyle}>
-          {sample ? "shader cost sample" : "click viewport to sample shader cost"}
+          <DiagnosticLegendRamp
+            leftLabel="low"
+            note={sample ? undefined : "shader complexity"}
+            rightLabel="high"
+            rampStyle={shaderCostLegendRampStyle}
+          >
+            <ShaderCostSampleMarker sampleCost={sampleCost} />
+          </DiagnosticLegendRamp>
         </div>
       </div>
     </Html>
   )
 }
 
-function ShaderCostLegendRamp({ sampleCost }: { sampleCost: number | null }) {
-  const markerPercent = sampleCost === null ? null : `${(sampleCost * 100).toFixed(2)}%`
-  const position = markerPercent === null
-    ? undefined
-    : `clamp(30px, ${markerPercent}, calc(100% - 30px))`
+function ShaderCostSampleMarker({ sampleCost }: { sampleCost: number | null }) {
+  if (sampleCost === null) return null
+
+  const markerPercent = `${(sampleCost * 100).toFixed(2)}%`
+  const position = `clamp(8px, ${markerPercent}, calc(100% - 8px))`
 
   return (
-    <div style={shaderCostLegendRampStyle}>
-      {position ? (
-        <div style={{ ...shaderCostTimingMarkerStyle, left: position }}>
-          <span style={shaderCostTimingMarkerTriangleStyle} />
-          <span style={shaderCostTimingMarkerLabelStyle}>sample</span>
-        </div>
-      ) : null}
+    <div style={{ ...shaderCostTimingMarkerStyle, left: position }}>
+      <span style={shaderCostTimingMarkerTriangleStyle} />
+    </div>
+  )
+}
+
+function DiagnosticLegendRamp({
+  leftLabel,
+  rightLabel,
+  rampStyle,
+  note,
+  children,
+}: {
+  leftLabel: string
+  rightLabel: string
+  rampStyle: CSSProperties
+  note?: string
+  children?: ReactNode
+}) {
+  return (
+    <div style={legendRampBlockStyle}>
+      <div style={{ ...rampStyle, ...legendRampBarStyle }}>
+        {children}
+      </div>
+      <div style={legendRampEndsStyle}>
+        <span style={legendEndLabelStyle}>{leftLabel}</span>
+        <span style={legendEndLabelStyle}>{rightLabel}</span>
+      </div>
+      {note ? <div style={legendNoteStyle}>{note}</div> : null}
     </div>
   )
 }
 
 export function OverdrawLegendOverlay() {
   return (
-    <Html fullscreen style={htmlOverlayStyle}>
+    <Html fullscreen calculatePosition={canvasHudPosition} style={htmlOverlayStyle}>
       <div aria-hidden="true" style={legendOverlayStyle}>
         <div style={legendPanelStyle}>
-          <span style={legendLabelStyle}>no overlap</span>
-          <div style={overdrawLegendRampStyle} />
-          <span style={legendLabelStyle}>heavy overlap</span>
+          <DiagnosticLegendRamp
+            leftLabel="none"
+            rightLabel="heavy"
+            rampStyle={overdrawLegendRampStyle}
+          />
         </div>
-        <div style={legendNoteStyle}>pixel overlap</div>
       </div>
     </Html>
   )
 }
 
+/** Anchor fullscreen HUD to the canvas, not world-origin projection. */
+export const canvasHudPosition = (
+  _object: Object3D,
+  _camera: Camera,
+  size: { width: number; height: number },
+): [number, number] => [size.width / 2, size.height / 2]
+
 const htmlOverlayStyle: CSSProperties = {
   pointerEvents: "none",
 }
 
+const presentationLabelContainerStyle: CSSProperties = {
+  height: "100%",
+  inset: 0,
+  pointerEvents: "none",
+  position: "absolute",
+  width: "100%",
+}
+
 const labelCellStyle: CSSProperties = {
   minWidth: 0,
+  padding: "10px",
   position: "relative",
+}
+
+function bandLabelCellStyle(region: { left: number; top: number; width: number }): CSSProperties {
+  const center = region.left + region.width / 2
+
+  return {
+    boxSizing: "border-box",
+    left: `${center * 100}%`,
+    maxWidth: `${region.width * 100}%`,
+    padding: "0 4px",
+    position: "absolute",
+    top: `calc(${region.top * 100}% + 6px)`,
+    transform: "translateX(-50%)",
+  }
 }
 
 const viewportLabelStyle: CSSProperties = {
@@ -139,15 +213,16 @@ const viewportLabelStyle: CSSProperties = {
   border: "1px solid rgba(255, 255, 255, 0.16)",
   borderRadius: 0,
   color: "#fff",
+  display: "inline-block",
   fontFamily: "monospace",
   fontSize: 12,
-  left: 10,
   letterSpacing: "0.04em",
   lineHeight: 1,
+  maxWidth: "100%",
+  overflow: "hidden",
   padding: "6px 8px",
-  position: "absolute",
+  textOverflow: "ellipsis",
   textTransform: "uppercase",
-  top: 10,
   whiteSpace: "nowrap",
 }
 
@@ -166,16 +241,40 @@ const legendOverlayStyle: CSSProperties = {
 }
 
 const legendPanelStyle: CSSProperties = {
-  alignItems: "center",
   background: "rgba(0, 0, 0, 0.62)",
   border: "1px solid rgba(255, 255, 255, 0.16)",
   borderRadius: 0,
   boxShadow: "0 10px 32px rgba(0, 0, 0, 0.32)",
-  display: "grid",
-  gap: 8,
-  gridTemplateColumns: "auto 1fr auto",
   padding: "8px 10px",
   width: "100%",
+}
+
+const legendRampBlockStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  width: "100%",
+}
+
+const legendRampBarStyle: CSSProperties = {
+  overflow: "visible",
+  position: "relative",
+  width: "100%",
+}
+
+const legendRampEndsStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  textAlign: "center",
+  width: "100%",
+}
+
+const legendEndLabelStyle: CSSProperties = {
+  color: "#fff",
+  fontFamily: "monospace",
+  fontSize: 12,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
 }
 
 const shaderCostSampleCursorStyle: CSSProperties = {
@@ -233,14 +332,7 @@ const legendNoteStyle: CSSProperties = {
   fontFamily: "monospace",
   fontSize: 12,
   letterSpacing: "0.04em",
-  textTransform: "uppercase",
-}
-
-const legendLabelStyle: CSSProperties = {
-  color: "#fff",
-  fontFamily: "monospace",
-  fontSize: 12,
-  letterSpacing: "0.08em",
+  textAlign: "center",
   textTransform: "uppercase",
 }
 
@@ -250,23 +342,6 @@ const shaderCostTimingMarkerStyle: CSSProperties = {
   position: "absolute",
   transform: "translateX(-50%)",
   width: 0,
-}
-
-const shaderCostTimingMarkerLabelStyle: CSSProperties = {
-  background: "rgba(0, 0, 0, 0.78)",
-  border: "1px solid rgba(255, 255, 255, 0.28)",
-  color: "#fff",
-  fontFamily: "monospace",
-  fontSize: 10,
-  left: "50%",
-  letterSpacing: "0.06em",
-  lineHeight: 1,
-  padding: "3px 5px",
-  position: "absolute",
-  textTransform: "uppercase",
-  top: -20,
-  transform: "translateX(-50%)",
-  whiteSpace: "nowrap",
 }
 
 const shaderCostTimingMarkerTriangleStyle: CSSProperties = {

@@ -7,6 +7,20 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 [View the full changelog on GitHub](https://github.com/tonyblu331/threejs-debug-view/blob/master/CHANGELOG.md)
 
+## [0.2.10] — 2026-06-08
+
+### Added
+- Breakdown label region helpers and canvas-centered HUD positioning for DOM overlays.
+- Configurable pane divider styling (`lineWidth`, `edgeColor`, `coreColor`).
+- Repo social capture preset (`?capture=social`) and `pnpm capture:social` script.
+
+### Fixed
+- Diagonal/breakdown viewport labels align with compositor bands on WebGPU `screenUV`.
+- `showLeva={false}` on `DebugViewLayer` skips Leva for capture flows.
+
+### Changed
+- Built-in **Shader Complexity** label and legend copy; breakdown tags center on band midpoints.
+
 ## [0.2.9] — 2026-06-08
 
 ### Added

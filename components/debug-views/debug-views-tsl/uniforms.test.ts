@@ -64,4 +64,18 @@ describe("debug view uniforms", () => {
 
     expect(uniforms.diagonalSlope.value).toBeCloseTo(1)
   })
+
+  it("updates divider style uniforms", () => {
+    const uniforms = createDebugViewUniforms()
+
+    updateDebugViewUniforms(uniforms, 0, "breakdown", 4, 0.35, {
+      lineWidth: 0.0004,
+      edgeColor: [0.9, 0.92, 0.95],
+      coreColor: [0.05, 0.05, 0.05],
+    })
+
+    expect(uniforms.dividerLineWidth.value).toBe(0.0004)
+    expect(uniforms.dividerEdgeColor.value.toArray()).toEqual([0.9, 0.92, 0.95, 1])
+    expect(uniforms.dividerCoreColor.value.toArray()).toEqual([0.05, 0.05, 0.05, 1])
+  })
 })

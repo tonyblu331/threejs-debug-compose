@@ -58,6 +58,8 @@ const emissiveView = DEFAULT_DEBUG_VIEWS.findIndex((view) => view.source === "em
 
 The demo uses this same pattern for capture URLs such as `?debugView=emissive`. It also supports `?scene=overdraw` to open the foliage overdraw scene instead of the main helmet/material-sphere scene.
 
+For a fixed breakdown presentation shot (Normal, Shader Complexity, Albedo, Depth with labels and legends, Leva hidden), open `/?capture=social&scene=overdraw`. From the repository root, run `pnpm capture:social` while the Vite dev server is running to write `capture/breakdown-social-x.png`.
+
 ## Verification
 
 Run the project checks before trusting a debug pipeline change:

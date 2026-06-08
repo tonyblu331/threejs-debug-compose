@@ -2,6 +2,14 @@ import { useEffect, useMemo } from "react"
 import { useControls } from "leva"
 import { getDebugViewLabels } from "./debug-view-definitions"
 import {
+  DEFAULT_DIVIDER_CORE_COLOR,
+  DEFAULT_DIVIDER_EDGE_COLOR,
+  DEFAULT_DIVIDER_LINE_WIDTH,
+  layoutUsesDividers,
+  levaColorToRgb,
+  rgbToLevaColor,
+} from "./debug-divider-style"
+import {
   createPaneAssignmentsKey,
   createViewportViews,
   getVisiblePaneCount,
@@ -9,6 +17,8 @@ import {
   usesPaneAssignments,
 } from "./debug-views-controls"
 import type { DebugViewsControlValues } from "./debug-views-options"
+import type { DebugViewLayout } from "./debug-view-layout"
+import type { DebugViewportView } from "./debug-viewport-plan"
 
 export type { DebugViewsControlValues } from "./debug-views-options"
 
@@ -17,6 +27,36 @@ interface UseDebugViewsControlsOptions {
   maxPaneCount?: number
   initialActiveView?: number
   showEnabledControl?: boolean
+}
+
+interface StaticDebugViewControlsOptions {
+  initialActiveView?: number
+  layout?: DebugViewLayout
+  diagonalAngle?: number
+  showLabels?: boolean
+  showLegends?: boolean
+  viewportViews?: readonly DebugViewportView[]
+}
+
+export function createStaticDebugViewControls(
+  options: StaticDebugViewControlsOptions = {},
+): DebugViewsControlValues {
+  return {
+    enabled: true,
+    showLabels: options.showLabels ?? true,
+    showLegends: options.showLegends ?? true,
+    activeView: Math.max(0, options.initialActiveView ?? 0),
+    layout: options.layout ?? "single",
+    paneCount: 4,
+    columns: 2,
+    rows: 2,
+    diagonalAngle: options.diagonalAngle ?? 25,
+    overlayOpacity: 0.35,
+    lineWidth: DEFAULT_DIVIDER_LINE_WIDTH,
+    edgeColor: DEFAULT_DIVIDER_EDGE_COLOR,
+    coreColor: DEFAULT_DIVIDER_CORE_COLOR,
+    viewportViews: options.viewportViews ? [...options.viewportViews] : undefined,
+  }
 }
 
 export function useDebugViewsControls(
@@ -57,6 +97,7 @@ export function useDebugViewsControls(
         ? { enabled: { label: "Enabled", value: true } }
         : {}),
       showLabels: { label: "Viewport labels", value: true },
+      showLegends: { label: "Diagnostic legends", value: true },
       activeView: {
         label: "View",
         value: Math.max(0, Math.min(initialActiveView, viewLabels.length - 1)),
@@ -120,6 +161,27 @@ export function useDebugViewsControls(
         step: 0.01,
         render: (get: (path: string) => unknown) => get("Debug.layout") === "overlay",
       },
+      lineWidth: {
+        label: "Divider width",
+        value: DEFAULT_DIVIDER_LINE_WIDTH,
+        min: 0.00008,
+        max: 0.002,
+        step: 0.00002,
+        render: (get: (path: string) => unknown) =>
+          layoutUsesDividers(String(get("Debug.layout"))),
+      },
+      edgeColor: {
+        label: "Divider edge",
+        value: rgbToLevaColor(DEFAULT_DIVIDER_EDGE_COLOR),
+        render: (get: (path: string) => unknown) =>
+          layoutUsesDividers(String(get("Debug.layout"))),
+      },
+      coreColor: {
+        label: "Divider core",
+        value: rgbToLevaColor(DEFAULT_DIVIDER_CORE_COLOR),
+        render: (get: (path: string) => unknown) =>
+          layoutUsesDividers(String(get("Debug.layout"))),
+      },
       ...paneControls,
     }
   }, [defaultPaneCount, initialActiveView, paneControlCount, paneLimit, showEnabledControl, viewLabels.length, viewOptions])
@@ -140,6 +202,9 @@ export function useDebugViewsControls(
   return {
     ...(controls as DebugViewsControlValues),
     enabled: showEnabledControl ? Boolean(controlValues.enabled) : true,
+    lineWidth: Number(controlValues.lineWidth ?? DEFAULT_DIVIDER_LINE_WIDTH),
+    edgeColor: levaColorToRgb(controlValues.edgeColor as { r: number; g: number; b: number }),
+    coreColor: levaColorToRgb(controlValues.coreColor as { r: number; g: number; b: number }),
     viewportViews,
   }
 }

@@ -1,6 +1,6 @@
 ---
 title: Viewport Labels
-description: Label panes in split, row, column, grid, and explicit viewport layouts.
+description: Label panes in split, row, column, grid, diagonal, and explicit viewport layouts.
 ---
 
 Enable labels with `showLabels`.
@@ -30,3 +30,27 @@ With explicit pane assignments, labels follow the `viewportViews` plan:
 ```
 
 You can also pass a formatter function when labels need to be generated from the view and viewport index.
+
+## Diagonal and breakdown layouts
+
+For `split-diagonal` and `breakdown`, labels are positioned in DOM space over the canvas (not in world space). Band geometry matches the TSL compositor: projected coordinates use WebGPU `screenUV`, where `y = 0` is the top of the viewport.
+
+Each tag is centered inside its band at a top scanline so it lines up with the slanted dividers you see in the render. Use `viewportViews` when pane order or short labels differ from the default view list:
+
+```tsx
+<DebugViews
+  views={views}
+  layout="breakdown"
+  diagonalAngle={13}
+  viewportViews={[
+    { view: "normal" },
+    { view: "shaderCost", label: "Complexity" },
+    { view: "albedo", label: "Albedo" },
+    { view: "depth" },
+  ]}
+  showLabels
+  showLegends
+/>
+```
+
+See [Presentation Routing](/threejs-debug-view/guides/render-modes/) for the breakdown screenshot and the repo `?capture=social` preset.

@@ -53,14 +53,22 @@ export function DebugViews({
   diagonalAngle,
   maxDiagonalAngle,
   showLabels = false,
+  showLegends = true,
   viewportLabels,
   overlayOpacity = 0.35,
+  lineWidth,
+  edgeColor,
+  coreColor,
   renderPriority = 1,
   enabled = true,
 }: DebugViewsProps) {
   const layoutOptions = useMemo(
     (): DebugViewLayoutOptions => ({ paneCount, columns, rows, diagonalAngle, maxDiagonalAngle }),
     [paneCount, columns, rows, diagonalAngle, maxDiagonalAngle],
+  )
+  const dividerStyle = useMemo(
+    () => ({ lineWidth, edgeColor, coreColor }),
+    [lineWidth, edgeColor, coreColor],
   )
 
   if (!enabled) {
@@ -75,8 +83,10 @@ export function DebugViews({
       layout={layout}
       layoutOptions={layoutOptions}
       showLabels={showLabels}
+      showLegends={showLegends}
       viewportLabels={viewportLabels}
       overlayOpacity={overlayOpacity}
+      dividerStyle={dividerStyle}
       renderPriority={renderPriority}
     />
   )
@@ -89,8 +99,10 @@ interface DebugViewsPipelineProps {
   layout: DebugViewLayout
   layoutOptions: DebugViewLayoutOptions
   showLabels: boolean
+  showLegends: boolean
   viewportLabels?: DebugViewportLabels
   overlayOpacity: number
+  dividerStyle: Pick<DebugViewsOptions, "lineWidth" | "edgeColor" | "coreColor">
   renderPriority: number
 }
 
@@ -101,8 +113,10 @@ function DebugViewsPipeline({
   layout,
   layoutOptions,
   showLabels,
+  showLegends,
   viewportLabels,
   overlayOpacity,
+  dividerStyle,
   renderPriority,
 }: DebugViewsPipelineProps) {
   const { camera, gl, scene } = useThree()
@@ -205,6 +219,7 @@ function DebugViewsPipeline({
           resolvedLayout,
           plan.pipelineViews.length,
           overlayOpacity,
+          dividerStyle,
         )
         composePipelineRef.current?.render()
       }
@@ -223,8 +238,8 @@ function DebugViewsPipeline({
           viewportPlan={viewportPlan}
         />
       ) : null}
-      {showsOverdraw ? <OverdrawLegendOverlay /> : null}
-      {showsShaderCost ? (
+      {showLegends && showsOverdraw ? <OverdrawLegendOverlay /> : null}
+      {showLegends && showsShaderCost ? (
         <ShaderCostLegendOverlay sample={shaderCostSample} />
       ) : null}
     </>

@@ -1,5 +1,5 @@
 ---
-title: Shader Cost Heatmap
+title: Shader Complexity Heatmap
 description: Use the shader-cost view to spot expensive program/material signals without treating it as a GPU profiler.
 ---
 
@@ -64,7 +64,7 @@ That keeps the override pass predictable instead of creating one material per me
   views={DEFAULT_DEBUG_VIEWS}
   viewportViews={[
     { view: "beauty", label: "Beauty" },
-    { view: "shaderCost", label: "Shader Cost", resolutionScale: 0.5 },
+    { view: "shaderCost", label: "Shader Complexity", resolutionScale: 0.5 },
   ]}
   layout="split-h"
   paneCount={2}

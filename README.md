@@ -13,7 +13,7 @@
 
 [![npm version](https://img.shields.io/npm/v/threejs-debug-view.svg)](https://www.npmjs.com/package/threejs-debug-view)
 [![license](https://img.shields.io/npm/l/threejs-debug-view.svg)](./LICENSE)
-[![library gzip](https://img.shields.io/badge/library_gzip-23_kB-007ec6)](https://github.com/tonyblu331/threejs-debug-view#bundle-size)
+[![library gzip](https://img.shields.io/badge/library_gzip-25_kB-007ec6)](https://github.com/tonyblu331/threejs-debug-view#bundle-size)
 
 Small debug views for Three.js WebGPU + TSL render pipelines.
 
@@ -73,7 +73,7 @@ Keep the overlay behind your app's dev flag. The package is publishable, but deb
 
 ## What It Shows
 
-Built-in debug sources include beauty, normal, depth, base color, material normal, emissive, roughness, AO, metallic, opacity, wireframe, lighting-only, reflection-only, overlap, and shader cost.
+Built-in debug sources include beauty, normal, depth, base color, material normal, emissive, roughness, AO, metallic, opacity, wireframe, lighting-only, reflection-only, overlap, and shader complexity.
 
 Material scalars are packed into one RGBA target:
 
@@ -158,4 +158,4 @@ The e2e suite keeps CI strict: if Chromium cannot start the WebGPU demo in CI, t
 
 ## Bundle size
 
-The npm badge reports the gzipped size of the published ESM files in `dist/` (~23 kB). Peer dependencies such as `three`, `react`, `react-dom`, and `@react-three/fiber` are excluded. Bundlephobia does not reliably analyze this package because of WebGPU/TSL peer imports, so the badge is measured locally via `pnpm pack:check`.
+The npm badge reports the gzipped size of the published ESM files in `dist/` (~25 kB). Peer dependencies such as `three`, `react`, `react-dom`, and `@react-three/fiber` are excluded. Bundlephobia does not reliably analyze this package because of WebGPU/TSL peer imports, so the badge is measured locally via `pnpm pack:check`.

@@ -24,7 +24,12 @@ Important props:
 | `viewLabels` | Optional labels passed to the bundled Leva controls. |
 | `maxPaneCount` | Upper bound for panes, rows, and columns in the controls. |
 | `showEnabledControl` | Shows the Leva `Enabled` toggle. Defaults to `true`. The demo sets this to `false`. |
-| `showLeva` | Mounts the bundled Leva control panel on `document.body`. Defaults to `true`. Set to `false` when mounting `DebugViewLeva` yourself. |
+| `showLeva` | Mounts the bundled Leva control panel on `document.body`. Defaults to `true`. Set to `false` when mounting `DebugViewLeva` yourself or for capture-only flows. |
+| `showLabels` | Overrides the Leva viewport-label toggle. |
+| `showLegends` | Overrides the Leva diagnostic-legend toggle. |
+| `layout` | Overrides the Leva layout preset (for example `breakdown`). |
+| `diagonalAngle` | Overrides the Leva diagonal angle for `split-diagonal` and `breakdown`. |
+| `viewportViews` | Overrides Leva pane assignments with fixed `DebugViewportView` entries. |
 
 ## `DebugViewLeva`
 
@@ -50,9 +55,13 @@ Important props:
 | `diagonalAngle` | Angle in degrees for `split-diagonal` and `breakdown`. `breakdown` defaults to `25` degrees. |
 | `maxDiagonalAngle` | Optional override for the default `45` degree diagonal angle clamp. |
 | `viewportViews` | Explicit pane assignments for fixed views, labels, cameras, or resolution scale. |
-| `showLabels` | Renders DOM labels over panes. |
+| `showLabels` | Renders DOM labels over panes (for example **Shader Complexity**, **Normal**). |
+| `showLegends` | Shows bottom diagnostic ramps (shader cost, overlap). Defaults to `true`. |
 | `viewportLabels` | Label overrides or formatter. |
 | `overlayOpacity` | Blend amount for overlay mode. |
+| `lineWidth` | Divider hairline thickness in normalized screen space (default thin). |
+| `edgeColor` | Silver rim at divider edges as RGB `[0–1, 0–1, 0–1]`. |
+| `coreColor` | Center fill inside dividers as RGB `[0–1, 0–1, 0–1]`. |
 
 Use this mental model when configuring panes: `layout` decides the arrangement, `paneCount` decides how many panes are visible, and `viewportViews` decides what each explicit pane renders. Simple pane assignments use the composed path; per-pane cameras and `resolutionScale` use the viewport/scissor path.
 
@@ -103,7 +112,7 @@ Built-in `DebugViewSource` values:
 | `lightingOnly` | Neutral lighting override pass. |
 | `reflectionOnly` | Reflective override pass. |
 | `overdraw` | Heatmap-style overlap diagnostic with a separate legend ramp. |
-| `shaderCost` | Shader-cost heatmap from shader-unit buckets. Click the viewport in the bundled overlay to sample a pixel. |
+| `shaderCost` | Shader-complexity heatmap from shader-unit buckets. Click the viewport in the bundled overlay to sample a pixel; the legend shows **shader complexity** when idle. |
 
 `shaderCost` is not a native GPU instruction counter. Render-pass timing and overlap diagnostics are separate signals, not ALU/TEX/occupancy data.
 

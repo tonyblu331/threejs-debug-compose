@@ -45,7 +45,8 @@ test.describe("debug demo controls", () => {
 
     await expect(getSceneTab(page, "Overlap")).toHaveAttribute("aria-selected", "true")
     await expectSelectedOption(page, "View", "Overlap")
-    await expect(page.getByText("pixel overlap", { exact: true })).toBeVisible()
+    await expect(page.getByText("none", { exact: true })).toBeVisible()
+    await expect(page.getByText("heavy", { exact: true })).toBeVisible()
 
     await getSceneTab(page, "Main").click()
     await expect(page).not.toHaveURL(/debugView=/)
@@ -60,8 +61,8 @@ test.describe("debug demo controls", () => {
     await page.goto("/?scene=overdraw&debugView=overdraw")
     await waitForDemoOrSkip(page)
 
-    await page.getByRole("combobox", { name: "View" }).selectOption({ label: "Shader Cost" })
-    await expect(page.getByText("click viewport to sample shader cost", { exact: true })).toBeVisible()
+    await page.getByRole("combobox", { name: "View" }).selectOption({ label: "Shader Complexity" })
+    await expect(page.getByText("shader complexity", { exact: true })).toBeVisible()
     await expect(page.getByText("Enabled", { exact: true })).toHaveCount(0)
     await expect(page.getByText("timestamp query", { exact: true })).toHaveCount(0)
     await expect(page.getByText("GPU pass", { exact: true })).toHaveCount(0)

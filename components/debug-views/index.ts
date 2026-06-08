@@ -114,6 +114,15 @@ export {
 } from "./debug-views-controls"
 
 export {
+  DEFAULT_DIVIDER_CORE_COLOR,
+  DEFAULT_DIVIDER_EDGE_COLOR,
+  DEFAULT_DIVIDER_LINE_WIDTH,
+  resolveDebugDividerStyle,
+  type DebugDividerStyle,
+  type RgbColor,
+} from "./debug-divider-style"
+
+export {
   type DebugViewsControlValues,
   type DebugViewsOptions,
 } from "./debug-views-options"

@@ -64,6 +64,8 @@ export function createViewCompositor(config: ViewCompositorConfig): Vec4Node {
   const overlay = blendOverlay(visualized, uniforms.overlayOpacity)
   const splitH  = selectByGrid(visualized, uniforms.viewCount, 2, 1)
   const splitV  = selectByGrid(visualized, uniforms.viewCount, 1, 2)
+  const splitDiagonal = selectByDiagonal(visualized, uniforms.diagonalSlope)
+  const breakdown = selectByDiagonalBands(visualized, uniforms.diagonalSlope)
   const quad    = selectByGrid(visualized, uniforms.viewCount, 2, 2)
   const grid    = selectByGrid(
     visualized,
@@ -76,14 +78,18 @@ export function createViewCompositor(config: ViewCompositorConfig): Vec4Node {
   const isOverlay = uniforms.layout.equal(float(LAYOUT_INDEX.overlay))
   const isSplitH  = uniforms.layout.equal(float(LAYOUT_INDEX["split-h"]))
   const isSplitV  = uniforms.layout.equal(float(LAYOUT_INDEX["split-v"]))
+  const isSplitDiagonal = uniforms.layout.equal(float(LAYOUT_INDEX["split-diagonal"]))
+  const isBreakdown = uniforms.layout.equal(float(LAYOUT_INDEX.breakdown))
   const isQuad    = uniforms.layout.equal(float(LAYOUT_INDEX.quad))
 
   return isSingle.select(single,
          isOverlay.select(overlay,
          isSplitH.select(splitH,
          isSplitV.select(splitV,
+         isSplitDiagonal.select(splitDiagonal,
+         isBreakdown.select(breakdown,
          isQuad.select(quad,
-         grid)))))
+         grid)))))))
 }
 
 function selectLayout(
@@ -100,6 +106,8 @@ function selectLayout(
       return blendOverlay(views, uniforms.overlayOpacity)
     case "diagonal":
       return selectByDiagonal(views, uniforms.diagonalSlope)
+    case "breakdown":
+      return selectByDiagonalBands(views, uniforms.diagonalSlope)
     case "grid":
       return selectByGrid(views, uniforms.viewCount, resolvedLayout.columns, resolvedLayout.rows)
   }
@@ -131,11 +139,30 @@ function selectByDiagonal(
 
   const uv = screenUV
   const boundary = uv.x.sub(float(0.5)).add(uv.y.sub(float(0.5)).mul(slope))
-  const divider = boundary.abs().lessThan(float(0.003))
+  const divider = boundary.abs().lessThan(DIAGONAL_DIVIDER_WIDTH)
   const split = boundary.greaterThanEqual(float(0))
   const result = split.select(views[1], views[0])
 
-  return divider.select(vec4(0.12, 0.12, 0.12, 1), result)
+  return divider.select(DIVIDER_COLOR, result)
+}
+
+function selectByDiagonalBands(
+  views: Vec4Node[],
+  slope: DebugViewUniforms["diagonalSlope"],
+): Vec4Node {
+  const uv = screenUV
+  const projected = uv.x.add(uv.y.sub(float(0.5)).mul(slope))
+  const firstDivider = projected.sub(float(0.25)).abs().lessThan(DIAGONAL_DIVIDER_WIDTH)
+  const secondDivider = projected.sub(float(0.5)).abs().lessThan(DIAGONAL_DIVIDER_WIDTH)
+  const thirdDivider = projected.sub(float(0.75)).abs().lessThan(DIAGONAL_DIVIDER_WIDTH)
+  const divider = firstDivider.or(secondDivider).or(thirdDivider)
+
+  let result = views[0]
+  for (let i = 1; i < Math.min(views.length, 4); i++) {
+    result = projected.greaterThan(float(i / 4)).select(views[i], result)
+  }
+
+  return divider.select(DIVIDER_COLOR, result)
 }
 
 function selectByGrid(
@@ -152,7 +179,7 @@ function selectByGrid(
   const row = fRows.sub(float(1)).sub(uv.y.mul(fRows).floor())
   const cellIdx = row.mul(fCols).add(col)
 
-  const lineWidth = float(0.003)
+  const lineWidth = GRID_DIVIDER_WIDTH
   const edgeX = uv.x.mul(fCols).fract()
   const edgeY = uv.y.mul(fRows).fract()
   const isGridLine = edgeX.lessThan(lineWidth)
@@ -165,12 +192,16 @@ function selectByGrid(
 
   result = cellIdx.greaterThanEqual(viewCount).select(views[0], result)
 
-  result = isGridLine.select(vec4(0.12, 0.12, 0.12, 1), result)
+  result = isGridLine.select(DIVIDER_COLOR, result)
 
   return result
 }
 
 type GridAxis = number | DebugViewUniforms["gridColumns"] | DebugViewUniforms["gridRows"]
+
+const GRID_DIVIDER_WIDTH = float(0.00075)
+const DIAGONAL_DIVIDER_WIDTH = float(0.00085)
+const DIVIDER_COLOR = vec4(0.16, 0.16, 0.16, 1)
 
 function toGridAxisNode(value: GridAxis) {
   return typeof value === "number" ? float(value) : value

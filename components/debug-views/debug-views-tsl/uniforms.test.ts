@@ -8,10 +8,11 @@ describe("debug view uniforms", () => {
     ["split-h", 2],
     ["split-v", 3],
     ["split-diagonal", 4],
-    ["quad", 5],
-    ["row", 6],
-    ["column", 7],
-    ["grid", 8],
+    ["breakdown", 5],
+    ["quad", 6],
+    ["row", 7],
+    ["column", 8],
+    ["grid", 9],
   ] as const)("maps %s layout to shader index %i", (layout, expected) => {
     const uniforms = createDebugViewUniforms()
 

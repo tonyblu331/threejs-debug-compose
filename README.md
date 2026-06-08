@@ -62,7 +62,7 @@ Roughness, metallic, AO, opacity, and emissive use shader-side defaults when a m
 
 `DebugViews` routes presentation from the props you provide. Simple layouts and pane assignments use the fullscreen TSL compositor. When a pane needs a custom camera or `resolutionScale`, it uses viewport/scissor presentation.
 
-`layout` and `paneCount` define the pane geometry. `viewportViews` assigns content to those panes. Use `split-diagonal` with `diagonalAngle` for a two-pane slanted split; the bundled controls clamp it to `45` degrees by default.
+`layout` and `paneCount` define the pane geometry. `viewportViews` assigns content to those panes. Use `split-diagonal` with `diagonalAngle` for a two-pane slanted split, or `breakdown` for a four-view diagonal material breakdown. The bundled controls clamp diagonal layouts to `45` degrees by default; `breakdown` starts at `35` degrees for a restrained ArtStation/Marmoset-style presentation.
 
 ```tsx
 <DebugViews

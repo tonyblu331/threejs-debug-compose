@@ -119,6 +119,23 @@ test.describe("debug demo controls", () => {
     await expect(page.getByText("Columns", { exact: true })).toHaveCount(0)
     expect(messages).toEqual([])
   })
+
+  test("exposes four-pane breakdown controls", async ({ page }) => {
+    const messages = collectRelevantConsoleMessages(page)
+
+    await page.goto("/?scene=overdraw&debugView=overdraw")
+    await waitForDemoOrSkip(page)
+
+    await page.getByRole("combobox", { name: "Layout" }).selectOption({ label: "Breakdown" })
+
+    await expect(page.getByRole("combobox", { name: "Mode" })).toHaveCount(0)
+    await expect(page.getByRole("combobox", { name: "View" })).toHaveCount(0)
+    await expect(page.getByRole("combobox", { name: "Pane 1" })).toBeVisible()
+    await expect(page.getByRole("combobox", { name: "Pane 4" })).toBeVisible()
+    await expect(page.getByRole("combobox", { name: "Pane 5" })).toHaveCount(0)
+    await expect(page.getByText("Diagonal angle", { exact: true })).toBeVisible()
+    expect(messages).toEqual([])
+  })
 })
 
 function collectRelevantConsoleMessages(page: Page) {

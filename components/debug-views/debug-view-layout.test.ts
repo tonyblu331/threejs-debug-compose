@@ -101,6 +101,13 @@ describe("debug view layout", () => {
       slots: 2,
       diagonalAngle: 24,
     })
+    expect(resolveDebugViewLayout("breakdown")).toMatchObject({
+      presentation: "breakdown",
+      columns: 4,
+      rows: 1,
+      slots: 4,
+      diagonalAngle: 35,
+    })
     expect(resolveDebugViewLayout("quad")).toMatchObject({ columns: 2, rows: 2, slots: 4 })
   })
 
@@ -144,5 +151,13 @@ describe("debug view layout", () => {
         (view) => view.source,
       ),
     ).toEqual(["beauty", "normal"])
+  })
+
+  it("selects four views for breakdown layouts", () => {
+    expect(
+      selectPipelineViews(DEFAULT_DEBUG_VIEWS, 0, "breakdown").map(
+        (view) => view.source,
+      ),
+    ).toEqual(["beauty", "normal", "depth", "albedo"])
   })
 })

@@ -4,6 +4,7 @@ export type LayoutMode =
   | "split-h"
   | "split-v"
   | "split-diagonal"
+  | "breakdown"
   | "quad"
   | "row"
   | "column"
@@ -24,7 +25,7 @@ export interface DebugViewLayoutConfig extends DebugViewLayoutOptions {
 
 export type DebugViewLayout = LayoutMode | DebugViewLayoutConfig
 
-export type LayoutPresentation = "single" | "overlay" | "grid" | "diagonal"
+export type LayoutPresentation = "single" | "overlay" | "grid" | "diagonal" | "breakdown"
 
 export interface ResolvedDebugViewLayout {
   mode: LayoutMode
@@ -41,14 +42,16 @@ export const LAYOUT_INDEX: Record<LayoutMode, number> = {
   "split-h": 2,
   "split-v": 3,
   "split-diagonal": 4,
-  quad: 5,
-  row: 6,
-  column: 7,
-  grid: 8,
+  breakdown: 5,
+  quad: 6,
+  row: 7,
+  column: 8,
+  grid: 9,
 }
 
 const DEFAULT_LINEAR_SLOTS = 4
 const DEFAULT_DIAGONAL_ANGLE = 24
+const DEFAULT_BREAKDOWN_ANGLE = 35
 const DEFAULT_MAX_DIAGONAL_ANGLE = 45
 const HARD_MAX_DIAGONAL_ANGLE = 85
 
@@ -75,6 +78,18 @@ export function resolveDebugViewLayout(
         1,
         2,
         normalizeDiagonalAngle(config.diagonalAngle, config.maxDiagonalAngle),
+      )
+    case "breakdown":
+      return createResolvedLayout(
+        config.mode,
+        "breakdown",
+        4,
+        1,
+        4,
+        normalizeDiagonalAngle(
+          config.diagonalAngle ?? DEFAULT_BREAKDOWN_ANGLE,
+          config.maxDiagonalAngle,
+        ),
       )
     case "quad":
       return createResolvedLayout(config.mode, "grid", 2, 2)

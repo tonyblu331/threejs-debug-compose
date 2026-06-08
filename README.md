@@ -1,12 +1,44 @@
 # threejs-debug-view
 
+<p align="center">
+  <img src="assets/logo.svg" alt="threejs-debug-view logo" width="72" height="72" />
+</p>
+
+<p align="center"><strong>Batteries-included debug views for Three.js WebGPU + TSL render pipelines.</strong></p>
+
+<p align="center">
+  Drop in <code>DebugViewLayer</code> for built-in views, Leva controls, and layout presets.<br />
+  Use the React-free root export when you only need planning helpers and TSL runtime pieces.
+</p>
+
 [![npm version](https://img.shields.io/npm/v/threejs-debug-view.svg)](https://www.npmjs.com/package/threejs-debug-view)
 [![license](https://img.shields.io/npm/l/threejs-debug-view.svg)](./LICENSE)
 [![library gzip](https://img.shields.io/badge/library_gzip-21_kB-007ec6)](https://github.com/tonyblu331/threejs-debug-view#bundle-size)
 
 Small debug views for Three.js WebGPU + TSL render pipelines.
 
-It lets you inspect what your scene is producing while you build: beauty, normals, depth, material channels, override views, overlap, and shader cost. It is focused on WebGPU debugging, not on being a full scene inspector.
+## Batteries included
+
+The `/r3f` entrypoint is the fast integration path:
+
+```tsx
+import { DebugViewLayer } from "threejs-debug-view/r3f"
+
+function DebugLayer() {
+  if (!import.meta.env.DEV) return null
+  return <DebugViewLayer />
+}
+```
+
+That mounts the overlay, wires Leva controls, and registers built-in sources such as beauty, normals, depth, material channels, wireframe, lighting-only, reflection-only, overlap, and shader cost.
+
+| Layer | Import | Use when |
+| --- | --- | --- |
+| Batteries included | `threejs-debug-view/r3f` → `DebugViewLayer` | You want the default overlay with minimal setup. |
+| Controlled overlay | `threejs-debug-view/r3f` → `DebugViews` + `useDebugViewsControls` | Your app owns UI state or only needs part of the surface. |
+| Headless core | `threejs-debug-view` | You need render planning, TSL helpers, and types without React. |
+
+The hosted demo and Starlight docs explain layouts, overlap, and shader-cost sampling. They are not published to npm. See the [docs](https://tonyblu331.github.io/threejs-debug-view/guides/batteries-included/) for the full package split.
 
 ## Install
 

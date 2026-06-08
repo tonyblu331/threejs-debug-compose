@@ -1,6 +1,6 @@
 ---
 title: Quick Start
-description: Add the debug view overlay and switch between built-in views.
+description: Add the batteries-included debug overlay or wire your own controls.
 ---
 
 Install the package with the R3F peers you already use in a Three.js React app.
@@ -9,7 +9,9 @@ Install the package with the R3F peers you already use in a Three.js React app.
 pnpm add threejs-debug-view three react react-dom @react-three/fiber @react-three/drei leva
 ```
 
-Use `threejs-debug-view/r3f` for React Three Fiber. The root package stays React-free.
+## Batteries included
+
+Use `threejs-debug-view/r3f` when you want the default overlay with Leva controls and built-in views already wired.
 
 ```tsx
 import { DebugViewLayer } from "threejs-debug-view/r3f"
@@ -20,7 +22,11 @@ function DebugLayer() {
 }
 ```
 
-For app-owned controls, use the lower-level component and bundled hook from the same R3F entrypoint:
+That is the intended one-component integration path. See [Batteries Included](/threejs-debug-view/guides/batteries-included/) for the full split between `/r3f`, the React-free root export, and the unpublished demo app.
+
+## Bring your own controls
+
+Use the lower-level component and bundled hook from the same R3F entrypoint when your app owns UI state:
 
 ```tsx
 import { DEFAULT_DEBUG_VIEWS, getDebugViewLabels } from "threejs-debug-view"

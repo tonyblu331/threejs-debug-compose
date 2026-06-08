@@ -1,0 +1,107 @@
+---
+title: Batteries Included
+description: What ships out of the box with threejs-debug-view, what stays optional, and what never lands on npm.
+---
+
+import logo from "../../../assets/logo.svg"
+
+<img src={logo.src} alt="" width="72" height="72" />
+
+`threejs-debug-view` is split on purpose:
+
+- the **root export** stays React-free
+- the **`/r3f` export** is the batteries-included path for React Three Fiber apps
+- the **demo app** and **Starlight docs site** live in the repo but are not published to npm
+
+## Batteries included
+
+Use this when you want the fastest dev overlay and do not need to own the control panel state.
+
+```tsx
+import { DebugViewLayer } from "threejs-debug-view/r3f"
+
+function DebugLayer() {
+  if (!import.meta.env.DEV) return null
+  return <DebugViewLayer />
+}
+```
+
+`DebugViewLayer` ships with:
+
+| Included | What it gives you |
+| --- | --- |
+| `DEFAULT_DEBUG_VIEWS` | Beauty, normals, depth, material channels, wireframe, lighting-only, reflection-only, overlap, and shader cost. |
+| Leva controls | View picker, layout presets, pane assignments, labels, blend opacity, and diagonal angle controls. |
+| `DebugViews` runtime | WebGPU MRT passes, TSL compositor, viewport/scissor routing, and demand-driven override passes. |
+| Demo-friendly defaults | The demo hides the Leva `Enabled` toggle via `showEnabledControl={false}` because the overlay is always on in that app. |
+
+That is the intended “drop one component into your canvas” path.
+
+## Bring your own controls
+
+Use this when your app already owns UI state or you only want part of the overlay surface.
+
+```tsx
+import { DEFAULT_DEBUG_VIEWS, getDebugViewLabels } from "threejs-debug-view"
+import { DebugViews, useDebugViewsControls } from "threejs-debug-view/r3f"
+
+const controls = useDebugViewsControls({
+  viewLabels: getDebugViewLabels(DEFAULT_DEBUG_VIEWS),
+})
+
+<DebugViews views={DEFAULT_DEBUG_VIEWS} {...controls} />
+```
+
+`useDebugViewsControls` exposes the same Leva schema as the demo, but your app decides where to mount controls, which views exist, and whether the overlay can be disabled.
+
+Useful knobs:
+
+- `showEnabledControl={false}` when debug views should stay mounted
+- custom `views` and `viewLabels` when you only want a subset of diagnostics
+- `viewportViews`, `layout`, and `paneCount` when panes must stay fixed
+
+## React-free core
+
+Import from `threejs-debug-view` when you need planning and TSL helpers without React:
+
+- `DEFAULT_DEBUG_VIEWS`
+- render-plan and layout utilities
+- TSL compositor helpers
+- shader-cost and overlap override builders
+
+This is the headless layer. It does not mount DOM labels, Leva, or a canvas overlay by itself.
+
+## What npm ships
+
+The npm tarball is library-only:
+
+| Published | Not published |
+| --- | --- |
+| `dist/` ESM + types | `src/` demo app |
+| `LICENSE` | `packages/docs/` Starlight site |
+| `README.md` | hosted demo build under docs `public/demo/` |
+| `assets/logo.svg` | Playwright fixtures, audit captures, local scripts |
+
+Run `pnpm pack:check` before release to confirm the tarball stays library-only and the README bundle badge still matches `dist/`.
+
+## What the demo is for
+
+The hosted demo is a living reference for:
+
+- scene tabs (`Main` vs `Overlap`)
+- layout presets (`single`, `overlay`, `breakdown`, `grid`, and so on)
+- shader-cost click-to-sample inspection
+- overlap legend styling separate from shader cost
+
+It validates the product surface. It is not something consumers install from npm.
+
+## Pick a path
+
+| Goal | Use |
+| --- | --- |
+| Fastest R3F integration | `DebugViewLayer` |
+| Custom app UI / partial overlay | `DebugViews` + `useDebugViewsControls` |
+| Non-React tooling or custom runtime | root `threejs-debug-view` exports |
+| Try layouts and diagnostics interactively | [Live demo](/threejs-debug-view/demo/) |
+
+See [Quick Start](/threejs-debug-view/guides/quick-start/) for install steps and [API Reference](/threejs-debug-view/reference/api/) for prop-level detail.

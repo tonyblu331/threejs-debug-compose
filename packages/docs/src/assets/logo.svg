@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="threejs-debug-view">
+  <rect width="64" height="64" fill="#050505"/>
+  <rect x="6" y="6" width="24" height="24" fill="none" stroke="#f2f2f2" stroke-width="2"/>
+  <rect x="34" y="6" width="24" height="24" fill="none" stroke="#f2f2f2" stroke-width="2"/>
+  <rect x="6" y="34" width="24" height="24" fill="none" stroke="#f2f2f2" stroke-width="2"/>
+  <rect x="34" y="34" width="24" height="24" fill="#f2f2f2"/>
+  <path d="M44 44h8M48 40v8" stroke="#050505" stroke-width="2" stroke-linecap="square"/>
+  <path d="M18 18h8M22 14v8" stroke="#8fd14f" stroke-width="2" stroke-linecap="square"/>
+  <path d="M46 18h8M50 14v8" stroke="#ffd400" stroke-width="2" stroke-linecap="square"/>
+  <path d="M18 46h8M22 42v8" stroke="#ff4d4d" stroke-width="2" stroke-linecap="square"/>
+</svg>

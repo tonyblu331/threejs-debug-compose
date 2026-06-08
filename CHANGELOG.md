@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Package logo (`assets/logo.svg`) for README, npm, and Starlight docs.
+- Starlight guide: [Batteries Included](/guides/batteries-included/) explaining the `/r3f` fast path, controlled overlay, React-free core, and unpublished demo/docs split.
+
+### Changed
+- README and docs homepage now lead with batteries-included positioning and logo branding.
+
 ## [0.2.6] - 2026-06-08
 
 ### Fixed

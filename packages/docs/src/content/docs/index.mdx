@@ -1,13 +1,19 @@
 ---
 title: threejs-debug-view
-description: Composable TSL debug views for Three.js WebGPU render pipelines.
+description: Batteries-included TSL debug views for Three.js WebGPU render pipelines.
 template: splash
 hero:
-  tagline: Inspect Three.js WebGPU render output from one small debug layer.
+  tagline: Batteries-included debug views for Three.js WebGPU. Drop in one R3F layer, switch buffers, layouts, overlap, and shader cost without wiring passes by hand.
+  image:
+    file: ../../assets/logo.svg
+    alt: threejs-debug-view logo
   actions:
     - text: Quick Start
       link: /threejs-debug-view/guides/quick-start/
       icon: right-arrow
+    - text: Batteries Included
+      link: /threejs-debug-view/guides/batteries-included/
+      icon: document
     - text: View on GitHub
       link: https://github.com/tonyblu331/threejs-debug-view
       icon: external
@@ -15,7 +21,19 @@ hero:
 
 `threejs-debug-view` gives you named debug views for the buffers your scene already produces: beauty, normals, depth, material channels, wireframe, lighting-only, reflection-only, overlap, and shader cost.
 
-Use the root package for core helpers and TSL view definitions. Use `threejs-debug-view/r3f` when you want the overlay inside a React Three Fiber `<Canvas>`.
+Use the root package for core helpers and TSL view definitions. Use `threejs-debug-view/r3f` when you want the batteries-included overlay inside a React Three Fiber `<Canvas>`.
+
+## Batteries included
+
+The `/r3f` entrypoint is the fast path:
+
+```tsx
+import { DebugViewLayer } from "threejs-debug-view/r3f"
+
+<DebugViewLayer />
+```
+
+That one component mounts the overlay, wires Leva controls, and registers the built-in debug sources. See [Batteries Included](/threejs-debug-view/guides/batteries-included/) for what ships out of the box, what stays optional, and what never lands on npm.
 
 ## R3F adapter
 

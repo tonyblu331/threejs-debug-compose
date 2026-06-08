@@ -6,6 +6,7 @@ import { assertReadmeBundleBadge } from "./measure-bundle-size.mjs"
 const root = process.cwd()
 const allowedEntries = new Set([
   "package/dist/",
+  "package/assets/logo.svg",
   "package/LICENSE",
   "package/README.md",
   "package/package.json",
@@ -17,7 +18,6 @@ const forbiddenPatterns = [
   /^package\/packages\//,
   /^package\/tests\//,
   /^package\/components\//,
-  /^package\/assets\//,
   /^package\/public\//,
   /^package\/index\.html$/,
   /^package\/vite(\.|$)/,

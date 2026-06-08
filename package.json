@@ -1,6 +1,6 @@
 {
   "name": "threejs-debug-view",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Composable TSL debug views for Three.js WebGPU render pipelines.",
   "license": "MIT",
   "type": "module",
@@ -22,8 +22,6 @@
   },
   "files": [
     "dist",
-    "assets/readme-debug-view-banner.png",
-    "assets/viewport-debug-view-quad.png",
     "LICENSE",
     "README.md"
   ],

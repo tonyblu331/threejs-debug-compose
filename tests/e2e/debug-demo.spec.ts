@@ -136,6 +136,46 @@ test.describe("debug demo controls", () => {
     await expect(page.getByText("Diagonal angle", { exact: true })).toBeVisible()
     expect(messages).toEqual([])
   })
+
+  test("smokes scene tabs across every layout preset", async ({ page }) => {
+    const messages = collectRelevantConsoleMessages(page)
+
+    await page.goto("/")
+    await waitForDemoOrSkip(page)
+
+    for (const tab of ["Main", "Overlap"]) {
+      await getSceneTab(page, tab).click()
+      await expect(getSceneTab(page, tab)).toHaveAttribute("aria-selected", "true")
+
+      for (const layout of [
+        "Single",
+        "Overlay",
+        "Split H",
+        "Split V",
+        "Split Diagonal",
+        "Breakdown",
+        "Quad",
+        "Row",
+        "Column",
+        "Grid",
+      ]) {
+        await page.getByRole("combobox", { name: "Layout" }).selectOption({ label: layout })
+        await expectSelectedOption(page, "Layout", layout)
+        await expect(page.locator("canvas")).toBeVisible()
+      }
+    }
+
+    await page.getByRole("combobox", { name: "Layout" }).selectOption({ label: "Grid" })
+    await expect(page.getByText("Rows", { exact: true })).toBeVisible()
+    await expect(page.getByText("Columns", { exact: true })).toBeVisible()
+    await expect(page.getByText("Panes", { exact: true })).toBeVisible()
+
+    await page.getByRole("combobox", { name: "Layout" }).selectOption({ label: "Breakdown" })
+    await expect(page.getByRole("combobox", { name: "Pane 4" })).toBeVisible()
+    await expect(page.getByText("Diagonal angle", { exact: true })).toBeVisible()
+
+    expect(messages).toEqual([])
+  })
 })
 
 function collectRelevantConsoleMessages(page: Page) {

@@ -10,4 +10,20 @@ packages/docs/.astro/
 packages/docs/dist/
 packages/docs/public/
 *.tgz
+
+# Playwright / local QA artifacts
 test-results/
+playwright-report/
+blob-report/
+capture/
+view-audit/
+view-audit-native-webgpu/
+
+# Ephemeral dev screenshots (docs assets live under packages/docs/src/assets/)
+/*.png
+
+# Internal planning notes (not shipped)
+*.sdd.md
+*.tasks.md
+**/planning/
+**/.plans/

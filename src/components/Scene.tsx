@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from "react"
+import { Suspense, useMemo, useRef, type ReactNode } from "react"
 import { useFrame, useLoader } from "@react-three/fiber"
 import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei"
 import { isSocialCapture } from "../demo/capture-mode"
@@ -22,7 +22,16 @@ import {
   type Texture,
 } from "three"
 
-export type DemoSceneVariant = "main" | "overdraw" | "lights"
+export type DemoSceneVariant = "main" | "overdraw" | "overlap-lights" | "lights"
+
+const foliageOverlapLights = [
+  { color: "#ff8c42", distance: 2.6, intensity: 16, position: [-0.55, 0.15, -0.92] as const },
+  { color: "#ffd166", distance: 2.4, intensity: 14, position: [0.12, 0.35, -1.02] as const },
+  { color: "#4cc9f0", distance: 2.3, intensity: 12, position: [0.78, 0.22, -0.78] as const },
+  { color: "#b5179e", distance: 2.2, intensity: 11, position: [-0.18, 0.05, -0.68] as const },
+  { color: "#80ed99", distance: 2.1, intensity: 10, position: [0.42, -0.05, -1.14] as const },
+  { color: "#f72585", distance: 2.0, intensity: 9, position: [-0.92, 0.28, -1.08] as const },
+] as const
 
 const DAMAGED_HELMET_URL = `${import.meta.env.BASE_URL}models/DamagedHelmet/glTF/DamagedHelmet.gltf`
 const textureRoot = `${import.meta.env.BASE_URL}textures/cliff_side`
@@ -638,7 +647,29 @@ function LightsDemoScene() {
   )
 }
 
-function OverdrawDemoScene() {
+function FoliageOverlapLightRig() {
+  return (
+    <group name="foliage-overlap-lights">
+      {foliageOverlapLights.map((light) => (
+        <pointLight
+          key={light.color}
+          color={light.color}
+          distance={light.distance}
+          intensity={light.intensity}
+          position={light.position}
+        />
+      ))}
+    </group>
+  )
+}
+
+function FoliageOverlapDemoShell({
+  captureVariant,
+  children,
+}: {
+  captureVariant: Extract<DemoSceneVariant, "overdraw" | "overlap-lights">
+  children: ReactNode
+}) {
   return (
     <>
       <color attach="background" args={["#121a14"]} />
@@ -647,14 +678,32 @@ function OverdrawDemoScene() {
       <directionalLight position={[2.6, 4.2, 3.8]} intensity={2.35} />
       <directionalLight color="#b7d7ff" position={[-3, 2, -2]} intensity={0.72} />
       <OrbitControls enableDamping makeDefault maxDistance={7} minDistance={2.2} target={[0, -0.28, -1.42]} />
-      {isSocialCapture() ? <CaptureCamera variant="overdraw" /> : null}
-      <FoliageOverdrawScene />
+      {isSocialCapture() ? <CaptureCamera variant={captureVariant} /> : null}
+      {children}
     </>
+  )
+}
+
+function OverdrawDemoScene() {
+  return (
+    <FoliageOverlapDemoShell captureVariant="overdraw">
+      <FoliageOverdrawScene />
+    </FoliageOverlapDemoShell>
+  )
+}
+
+function OverlapLightsDemoScene() {
+  return (
+    <FoliageOverlapDemoShell captureVariant="overlap-lights">
+      <FoliageOverdrawScene />
+      <FoliageOverlapLightRig />
+    </FoliageOverlapDemoShell>
   )
 }
 
 export function Scene({ variant = "main" }: { variant?: DemoSceneVariant }) {
   if (variant === "overdraw") return <OverdrawDemoScene />
+  if (variant === "overlap-lights") return <OverlapLightsDemoScene />
   if (variant === "lights") return <LightsDemoScene />
   return <MainDemoScene />
 }

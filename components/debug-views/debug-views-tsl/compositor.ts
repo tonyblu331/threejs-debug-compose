@@ -1,7 +1,13 @@
 import { float, vec4, screenUV, mix } from "three/tsl"
 import type { DebugNode, FloatNode, Vec4Node } from "./node-types"
 import type { DebugViewUniforms } from "./uniforms"
-import { visualizeDepth, visualizeHeatmap, visualizeNormal } from "./visualize"
+import {
+  visualizeDepth,
+  visualizeHeatmap,
+  visualizeLightComplexityHeatmap,
+  visualizeNormal,
+} from "./visualize"
+import { getDefaultDebugViewSource } from "../debug-view-selection"
 import {
   isResolvedDebugViewLayout,
   LAYOUT_INDEX,
@@ -30,7 +36,6 @@ export type DebugViewSource =
   | "lightingOnly"
   | "reflectionOnly"
   | "overdraw"
-  | "overdrawVisual"
   | "lightComplexity"
   | "shaderCost"
 
@@ -231,12 +236,18 @@ function applyMode(view: DebugView): Vec4Node {
         scale !== undefined ? float(scale) : undefined,
         bias !== undefined ? float(bias) : undefined,
       )
-    case "heatmap":
-      return visualizeHeatmap(
+    case "heatmap": {
+      const visualize =
+        getDefaultDebugViewSource(view) === "lightComplexity"
+          ? visualizeLightComplexityHeatmap
+          : visualizeHeatmap
+
+      return visualize(
         node as FloatNode,
         scale !== undefined ? float(scale) : undefined,
         bias !== undefined ? float(bias) : undefined,
       )
+    }
     case "passthrough":
     default:
       return node as Vec4Node

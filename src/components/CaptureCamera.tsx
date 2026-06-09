@@ -23,6 +23,11 @@ const SOCIAL_CAMERA: Record<
     target: [0.1, -0.38, -1.22],
     fov: 34,
   },
+  "overlap-lights": {
+    position: [4.25, 1.05, 3.55],
+    target: [0.1, -0.38, -1.22],
+    fov: 34,
+  },
   lights: {
     position: [2.8, 1.4, 3.2],
     target: [0, 0, 0],

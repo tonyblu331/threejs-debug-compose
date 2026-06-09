@@ -1,35 +1,35 @@
 ---
 title: Deployment
-description: How this documentation site is built and published to GitHub Pages.
+description: Quality gates, local docs commands, and GitHub Pages publishing.
 ---
 
-The docs package lives in `packages/docs` and is deployed with GitHub Actions.
+## Quality gates
 
-## Local commands
+| Gate | Command | What it checks |
+| --- | --- | --- |
+| Typecheck | `pnpm typecheck` | TypeScript across library + demo |
+| Unit tests | `pnpm test` | Vitest (render plans, views, helpers) |
+| Library build | `pnpm build` | ESM `dist/` + declaration emit |
+| npm surface | `pnpm pack:check` | Tarball contains only publishable files; bundle badge |
+| Docs build | `pnpm docs:build` | Starlight site compiles |
+| Full verify | `pnpm verify` | All of the above |
+| E2E demo | `pnpm test:e2e` | Playwright against the Vite demo (WebGPU required) |
+
+For WebGPU or demo changes, also smoke-test `pnpm dev` in a browser with native WebGPU. The e2e suite fails in CI when Chromium cannot start the WebGPU demo — it does not treat a missing GPU as a passing fallback.
+
+## Local docs commands
 
 ```bash
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm --filter @threejs-debug-view/docs dev
-pnpm --filter @threejs-debug-view/docs build
+pnpm docs:dev      # Starlight dev server
+pnpm docs:build    # production build (included in verify)
+pnpm docs:preview  # preview the built site
 ```
 
-For package and docs confidence in one local pass:
+Demo build for Pages embedding:
 
 ```bash
-pnpm verify
-```
-
-For runtime-facing WebGPU or demo changes, also run the Playwright demo checks and smoke-test the Vite demo in a browser with native WebGPU support:
-
-```bash
-pnpm test:e2e
-pnpm dev
 pnpm run build:demo:docs
 ```
-
-The e2e suite is strict in CI. If Chromium cannot start the native WebGPU demo there, the run fails instead of treating the WebGPU gate as a passing fallback.
 
 ## GitHub Pages
 

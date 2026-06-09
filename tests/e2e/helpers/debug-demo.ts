@@ -45,7 +45,7 @@ export async function waitForDemoOrSkip(page: Page) {
 }
 
 export function getSceneTab(page: Page, name: string) {
-  return page.locator('button[role="tab"]').filter({ hasText: name })
+  return page.getByRole("tab", { name, exact: true })
 }
 
 export async function expectSelectedOption(page: Page, label: string, option: string) {

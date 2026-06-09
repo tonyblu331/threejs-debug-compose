@@ -3,7 +3,7 @@ title: Quick Start
 description: Install and integrate debug views with or without React Three Fiber.
 ---
 
-Both paths use the same WebGPU + TSL runtime. Only the UI layer differs: headless helpers from the root export, or the R3F adapter with optional Leva and DOM overlays.
+Both paths use the same WebGPU + TSL runtime. Only the UI layer differs: headless helpers from the root export, or batteries-included R3F with optional Leva and DOM labels/legends.
 
 ## Install without R3F
 
@@ -98,7 +98,7 @@ const emissiveIndex = DEFAULT_DEBUG_VIEWS.findIndex((view) => view.source === "e
 />
 ```
 
-The repo demo supports URL params such as `?debugView=emissive`, `?scene=overdraw&debugView=overdraw`, and `?scene=lights&debugView=lightComplexity`. Use the **Overlap** and **Lights** scene tabs in the demo shell. See [Overlap & Light Diagnostics](/threejs-debug-view/guides/overlap-and-light-diagnostics/). For a fixed breakdown capture preset, open `/?capture=social&scene=overdraw` or run `pnpm capture:social` from the repository root.
+The repo demo supports URL params such as `?debugView=emissive`, `?scene=overdraw&debugView=overdraw`, and `?scene=lights&debugView=lightComplexity`. Use the **Overlap** and **Lights** scene tabs in the demo shell. See [Overlap & Light Diagnostics](/threejs-debug-view/guides/overlap-and-light-diagnostics/). For a fixed breakdown capture preset, open `/?capture=social&scene=overdraw` while `pnpm dev` is running.
 
 ## Verify locally
 

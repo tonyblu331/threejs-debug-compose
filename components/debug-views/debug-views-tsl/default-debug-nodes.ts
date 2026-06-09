@@ -50,7 +50,6 @@ interface DefaultDebugNodeResolverOptions {
   lightingOnlyPass?: DebugPass
   reflectionOnlyPass?: DebugPass
   overdrawPass?: DebugPass
-  overdrawVisualPass?: DebugPass
   lightComplexityPass?: DebugPass
   shaderCostPass?: DebugPass
 }
@@ -156,11 +155,6 @@ export function createDefaultDebugNodeResolver(
         return cached(
           "overdraw",
           () => typedNode<Vec4Node>(options.overdrawPass?.getTextureNode("output") ?? BLACK).r,
-        )
-      case "overdrawVisual":
-        return cached(
-          "overdrawVisual",
-          () => typedNode<Vec4Node>(options.overdrawVisualPass?.getTextureNode("output") ?? BLACK).r,
         )
       case "lightComplexity":
         return cached(

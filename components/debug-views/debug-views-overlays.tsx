@@ -17,12 +17,6 @@ export interface ShaderCostSample {
   y: number
 }
 
-export interface OverdrawLayerSample {
-  layers: number
-  x: number
-  y: number
-}
-
 export interface DebugViewportLabelOverlayProps {
   views: readonly DebugView[]
   layout: ResolvedDebugViewLayout
@@ -158,32 +152,16 @@ function DiagnosticLegendRamp({
   )
 }
 
-export function OverdrawLegendOverlay({ sample }: { sample?: OverdrawLayerSample | null }) {
+export function OverdrawLegendOverlay() {
   return (
     <Html fullscreen calculatePosition={canvasHudPosition} style={htmlOverlayStyle}>
       <div aria-hidden="true" style={legendOverlayStyle}>
-        {sample ? (
-          <div
-            style={{
-              ...shaderCostSampleCursorStyle,
-              left: sample.x,
-              top: sample.y,
-            }}
-          >
-            <span style={shaderCostSampleCursorRingStyle} />
-            <span style={shaderCostSampleCursorCrosshairHorizontalStyle} />
-            <span style={shaderCostSampleCursorCrosshairVerticalStyle} />
-          </div>
-        ) : null}
         <div style={legendPanelStyle}>
           <DiagnosticLegendRamp
-            leftLabel="0 layers"
-            note="Click viewport to sample integer layer count."
+            leftLabel="none"
             rampStyle={overdrawLegendRampStyle}
-            rightLabel="8+ layers"
-          >
-            {sample ? <OverdrawLayerMarker layers={sample.layers} /> : null}
-          </DiagnosticLegendRamp>
+            rightLabel="heavy"
+          />
         </div>
       </div>
     </Html>
@@ -196,26 +174,13 @@ export function LightComplexityLegendOverlay() {
       <div aria-hidden="true" style={legendOverlayStyle}>
         <div style={legendPanelStyle}>
           <DiagnosticLegendRamp
-            leftLabel="0 lights"
-            note="Shadows excluded in v1. Default forward lights only."
+            leftLabel="few"
             rampStyle={lightComplexityLegendRampStyle}
-            rightLabel="8+ lights"
+            rightLabel="many"
           />
         </div>
       </div>
     </Html>
-  )
-}
-
-const OVERDRAW_LEGEND_CLAMP_LAYERS = 8
-
-function OverdrawLayerMarker({ layers }: { layers: number }) {
-  const position = `${Math.min(100, Math.max(0, (Math.min(layers, OVERDRAW_LEGEND_CLAMP_LAYERS) / OVERDRAW_LEGEND_CLAMP_LAYERS) * 100))}%`
-
-  return (
-    <div style={{ ...shaderCostTimingMarkerStyle, left: position }}>
-      <span style={shaderCostTimingMarkerTriangleStyle} />
-    </div>
   )
 }
 
@@ -417,7 +382,7 @@ const overdrawLegendRampStyle: CSSProperties = {
 const lightComplexityLegendRampStyle: CSSProperties = {
   ...diagnosticLegendRampBaseStyle,
   background:
-    "linear-gradient(90deg, #000 0%, #0d2a12 20%, #2f8f3f 48%, #d6ff4d 78%, #fff 100%)",
+    "linear-gradient(90deg, #000 0%, #000 6%, #2060ff 18%, #00d4ff 36%, #fff000 56%, #ff0d00 78%, #fff 100%)",
 }
 
 function createLabelGridStyle(layout: ResolvedDebugViewLayout): CSSProperties {

@@ -7,38 +7,40 @@
 <p align="center"><strong>Debug views for Three.js WebGPU + TSL render pipelines.</strong></p>
 
 <p align="center">
-  Use the React-free root export in your own render loop, or drop in <code>DebugViewLayer</code> for a batteries-included R3F overlay.
+  React-free headless runtime, or batteries-included R3F via <code>DebugViewLayer</code>.
 </p>
 
 [![npm version](https://img.shields.io/npm/v/threejs-debug-view.svg)](https://www.npmjs.com/package/threejs-debug-view)
 [![license](https://img.shields.io/npm/l/threejs-debug-view.svg)](./LICENSE)
 [![library gzip](https://img.shields.io/badge/library_gzip-30_kB-007ec6)](https://github.com/tonyblu331/threejs-debug-view#bundle-size)
 
+**Docs:** [Starlight site](https://tonyblu331.github.io/threejs-debug-view/) · [Live demo](https://tonyblu331.github.io/threejs-debug-view/demo/)
+
 ## Install
 
-**WebGPU app (no React):**
+**Headless (no React):**
 
 ```bash
 pnpm add threejs-debug-view three
 ```
 
-**React Three Fiber:**
+**Batteries-included R3F:**
 
 ```bash
 pnpm add threejs-debug-view three react react-dom @react-three/fiber @react-three/drei leva
 ```
 
-The root export is React-free. The `/r3f` adapter needs the R3F and Leva peers above.
+The root export is React-free. `/r3f` needs the peers above.
 
 ## Get started
 
 | Path | Import | Use when |
 | --- | --- | --- |
-| Headless | `threejs-debug-view` | You own the WebGPU render loop. See the [headless runtime guide](https://tonyblu331.github.io/threejs-debug-view/guides/headless-runtime/). |
-| Batteries included | `threejs-debug-view/r3f` → `DebugViewLayer` | You want built-in views, layouts, and Leva controls with minimal setup. |
-| Controlled overlay | `threejs-debug-view/r3f` → `DebugViews` + `useDebugViewsControls` | Your app owns UI state or only needs part of the overlay. |
+| Headless | `threejs-debug-view` | You own the WebGPU render loop. |
+| Batteries-included R3F | `threejs-debug-view/r3f` → `DebugViewLayer` | Built-in views, layouts, and Leva with minimal setup. |
+| Controlled | `threejs-debug-view/r3f` → `DebugViews` + `useDebugViewsControls` | Your app owns UI state or part of the surface. |
 
-Full walkthrough: [Quick Start](https://tonyblu331.github.io/threejs-debug-view/guides/quick-start/) · [Batteries Included](https://tonyblu331.github.io/threejs-debug-view/guides/batteries-included/) · [Live demo](https://tonyblu331.github.io/threejs-debug-view/demo/)
+Guides: [Quick Start](https://tonyblu331.github.io/threejs-debug-view/guides/quick-start/) · [Headless Runtime](https://tonyblu331.github.io/threejs-debug-view/guides/headless-runtime/) · [Batteries Included](https://tonyblu331.github.io/threejs-debug-view/guides/batteries-included/)
 
 ```tsx
 import { DebugViewLayer } from "threejs-debug-view/r3f"
@@ -49,63 +51,38 @@ function DebugLayer() {
 }
 ```
 
-Keep debug views behind a dev flag unless you intentionally expose them in production.
+Keep debug views behind a dev flag unless you intentionally ship them in production.
 
-## Status
+## Built-in views
 
-- WebGPU-first.
-- TSL-first.
-- React Three Fiber adapter.
-- No WebGL fallback right now.
-- Not an `EffectComposer` helper.
+`DEFAULT_DEBUG_VIEWS` ships sixteen named sources. Override and heatmap passes are **demand-driven**: they render only when the active view or layout needs them.
 
-The runtime uses `three/webgpu`, `three/tsl`, WebGPU MRT passes, and fullscreen `RenderPipeline` composition.
+| Source | Mode | What it shows |
+| --- | --- | --- |
+| `beauty` | passthrough | Final lit color |
+| `normal` | passthrough | View-space geometry normals |
+| `depth` | depth | View-space depth |
+| `albedo` | passthrough | Base color without lighting |
+| `materialNormal` | passthrough | Material normal map output |
+| `emissive` | passthrough | Emissive color |
+| `roughness` | passthrough | Packed scalar (`R` of material target) |
+| `metallic` | passthrough | Packed scalar (`G`) |
+| `ao` | passthrough | Packed scalar (`B`); material AO, not SSAO |
+| `opacity` | passthrough | Packed scalar (`A`) |
+| `wireframe` | passthrough | Wireframe override pass |
+| `lightingOnly` | passthrough | Neutral lighting-only override |
+| `reflectionOnly` | passthrough | Reflection-only override |
+| `overdraw` | heatmap | Measured contributor layer count |
+| `lightComplexity` | heatmap | Light overlap (v1 analytic counter) |
+| `shaderCost` | heatmap | Shader-cost estimate (not native GPU counters) |
 
-## What It Shows
+Full tables and pass behavior: [Built-in Views](https://tonyblu331.github.io/threejs-debug-view/guides/built-in-views/) · [Overlap & light diagnostics](https://tonyblu331.github.io/threejs-debug-view/guides/overlap-and-light-diagnostics/) · [Shader cost](https://tonyblu331.github.io/threejs-debug-view/guides/shader-cost-heatmap/)
 
-Built-in debug sources include beauty, normal, depth, base color, material normal, emissive, roughness, AO, metallic, opacity, wireframe, lighting-only, reflection-only, measured overlap, estimated light overlap, and shader complexity.
+Unsupported material properties use shader-side defaults; the runtime does not patch scene materials to force a view to compile.
 
-Material scalars are packed into one RGBA target:
+## Custom debug view
 
-- `R`: roughness
-- `G`: metallic
-- `B`: AO
-- `A`: opacity
-
-Material-normal uses a focused material-detail pass. Emissive shares the reusable scene pass with the packed material scalar views. Wireframe, lighting-only, reflection-only, measured overlap, estimated light overlap, and shader-cost views are created only when the active layout needs them.
-
-Roughness, metallic, AO, opacity, and emissive use shader-side defaults when a material does not support the property. The debug runtime does not patch scene materials to make a view compile. AO reads material-authored AO maps; it is not a screen-space AO buffer unless you provide one as a custom view or pass-backed source.
-
-`shaderCost` is an estimate, not a native GPU instruction counter. It scores materials through source-labeled shader-unit buckets such as ALU proxy work, texture samples, dependent texture risk, branch/discard pressure, bandwidth pressure, and confidence. Measured overlap, estimated light overlap, and render-pass timing are separate diagnostics, not shader-cost inputs.
-
-**Measured Overlap** (`overdraw`) counts translucent and alpha-cutout contributor layers via a depth prepass and blend counter — opaque meshes write depth but do not increment the layer count. **Estimated Light Overlap** (`lightComplexity`) counts point, spot, and rect lights on the default forward renderer (globals and shadows excluded in v1). In the bundled demo overlay, click the viewport on **Shader Complexity** or **Measured Overlap** to sample a pixel and read the legend marker. Demo tabs: **Overlap** (`?scene=overdraw`) and **Lights** (`?scene=lights`).
-
-The demo overlay hides the Leva `Enabled` toggle because the demo is always showing debug views. Pass `showEnabledControl={false}` to `DebugViewLayer` to match that behavior.
-
-## Presentation Routing
-
-`DebugViews` routes presentation from the props you provide. Simple layouts and pane assignments use the fullscreen TSL compositor. When a pane needs a custom camera or `resolutionScale`, it uses viewport/scissor presentation.
-
-`layout` and `paneCount` define the pane geometry. `viewportViews` assigns content to those panes. Use `split-diagonal` with `diagonalAngle` for a two-pane slanted split, or `breakdown` for a four-view diagonal material breakdown. Diagonal layouts clamp to `45` degrees by default; `breakdown` starts at `25` degrees.
-
-```tsx
-<DebugViews
-  views={DEFAULT_DEBUG_VIEWS}
-  viewportViews={[
-    { view: "beauty", label: "Beauty" },
-    { view: "lightingOnly", label: "Lighting" },
-    { view: "normal", label: "Normals", resolutionScale: 0.5 },
-    { view: "roughness", label: "Roughness", resolutionScale: 0.5 },
-  ]}
-  layout="row"
-  paneCount={4}
-  showLabels
-/>
-```
-
-`resolutionScale` is quantized to `1`, `0.5`, or `0.25` so render targets stay predictable.
-
-## Custom TSL Views
+Add a TSL `node` view, or use `createCustomDebugView()` when React may recreate the node and you need a stable render-graph `id`:
 
 ```tsx
 import { float, vec4 } from "three/tsl"
@@ -121,33 +98,50 @@ const fresnelView = createCustomDebugView({
 <DebugViews views={[...DEFAULT_DEBUG_VIEWS, fresnelView]} />
 ```
 
-Use a stable `id` when a custom node can be recreated between React renders. The viewport render graph uses that id in stable pass keys.
-The compose runtime also tracks custom node identity so replacing the node instance rebuilds the pipeline instead of keeping stale shader code.
+Pass-backed views that need their own target, material override, or camera belong in a dedicated pass — not forced into `node`. Details: [Custom Debug Views](https://tonyblu331.github.io/threejs-debug-view/guides/custom-debug-views/).
 
-## Project Shape
+## Documentation site
 
-- `components/debug-views/` is the package source.
-- `threejs-debug-view` exports debug view definitions, render planning, TSL helpers, and headless WebGPU runtime (`createDebugPipelineRuntime`, `createDebugViewportRenderer`, `requiresViewportRuntime`).
-- `threejs-debug-view/r3f` exports the batteries-included `DebugViewLayer`, the lower-level `DebugViews` component, and Leva controls.
-- `src/` is the local demo app only; it is not published to npm.
-- `packages/docs/` is the Astro documentation site and hosted demo build output; it is not published to npm.
-- The npm tarball ships only `dist/`, `LICENSE`, and `README.md`. Run `pnpm pack:check` before publishing.
-
-## Verification
+User docs live in `packages/docs/` (Astro + Starlight). They are not published to npm.
 
 ```bash
-pnpm verify
+pnpm docs:dev      # local Starlight dev server
+pnpm docs:build    # production build (included in verify)
+pnpm docs:preview  # preview the built site
 ```
 
-For runtime-facing WebGPU or demo changes, also run the Playwright demo checks and smoke-test the Vite demo in a browser with native WebGPU support:
+Hosted at [tonyblu331.github.io/threejs-debug-view](https://tonyblu331.github.io/threejs-debug-view/).
 
-```bash
-pnpm test:e2e
-pnpm dev
-```
+## Quality gates
 
-The e2e suite keeps CI strict: if Chromium cannot start the WebGPU demo in CI, the test fails instead of silently accepting the fallback gate.
+| Gate | Command | What it checks |
+| --- | --- | --- |
+| Typecheck | `pnpm typecheck` | TypeScript across library + demo |
+| Unit tests | `pnpm test` | Vitest (render plans, views, helpers) |
+| Library build | `pnpm build` | ESM `dist/` + declaration emit |
+| npm surface | `pnpm pack:check` | Tarball contains only `dist/`, logo, LICENSE, README; bundle badge |
+| Docs build | `pnpm docs:build` | Starlight site compiles |
+| Full verify | `pnpm verify` | All of the above |
+| E2E demo | `pnpm test:e2e` | Playwright against the Vite demo (WebGPU required; fails in CI without it) |
+
+For WebGPU or demo changes, run `pnpm test:e2e` and smoke-test `pnpm dev` in a browser with native WebGPU.
+
+## Project shape
+
+- `components/debug-views/` — library source
+- `threejs-debug-view` — view definitions, render planning, TSL helpers, headless runtime
+- `threejs-debug-view/r3f` — `DebugViewLayer`, `DebugViews`, Leva controls
+- `src/` — local demo (not on npm)
+- `packages/docs/` — Starlight docs + hosted demo build output (not on npm)
+
+The npm tarball ships `dist/`, `assets/logo.svg`, `LICENSE`, and `README.md` only.
+
+## Status
+
+- WebGPU-first, TSL-first, no WebGL fallback
+- Not an `EffectComposer` helper
+- Uses `three/webgpu`, `three/tsl`, WebGPU MRT passes, and fullscreen `RenderPipeline` composition
 
 ## Bundle size
 
-The npm badge reports the gzipped size of the published ESM files in `dist/` (~30 kB). Peer dependencies such as `three`, `react`, `react-dom`, and `@react-three/fiber` are excluded. Bundlephobia does not reliably analyze this package because of WebGPU/TSL peer imports, so the badge is measured locally via `pnpm pack:check`.
+The badge reports gzipped published ESM in `dist/` (~30 kB). Peers (`three`, React, R3F, Leva) are excluded. Measured locally via `pnpm pack:check` because Bundlephobia does not reliably analyze WebGPU/TSL peer imports.

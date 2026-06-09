@@ -7,6 +7,19 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 [View the full changelog on GitHub](https://github.com/tonyblu331/threejs-debug-view/blob/master/CHANGELOG.md)
 
+## [0.2.14] — 2026-06-09
+
+### Added
+- **Light Overlap** (`lightComplexity`): analytic counter for point, spot, and rect lights.
+- Foliage and lights demo scenes for overlap diagnostics.
+
+### Changed
+- **Overlap** (`overdraw`) restored to the additive contributor pass.
+- Removed measured-overdraw experiment and internal planning artifacts from the published surface.
+
+### Fixed
+- Overlap view renders in WebGPU (measured counter pass produced a blank framebuffer).
+
 ## [0.2.13] — 2026-06-09
 
 ### Added

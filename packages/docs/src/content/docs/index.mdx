@@ -28,11 +28,43 @@ hero:
 
 Import from **`threejs-debug-view`** when you own the WebGPU render loop. You get view definitions, render planning, and runtime helpers such as `createDebugPipelineRuntime` and `createDebugViewportRenderer`. No React, R3F, or Leva required.
 
+```ts
+import {
+  DEFAULT_DEBUG_VIEWS,
+  createDebugRenderPlan,
+  createDebugPipelineRuntime,
+  createDebugViewUniforms,
+  resolveDebugViewLayout,
+  updateDebugViewUniforms,
+} from "threejs-debug-view"
+import { WebGPURenderer } from "three/webgpu"
+
+const views = DEFAULT_DEBUG_VIEWS
+const layout = resolveDebugViewLayout("single")
+const plan = createDebugRenderPlan(views, 0, layout)
+const uniforms = createDebugViewUniforms()
+
+const runtime = createDebugPipelineRuntime(
+  scene,
+  camera,
+  plan,
+  layout,
+  renderer as WebGPURenderer,
+  uniforms,
+)
+
+function animate() {
+  updateDebugViewUniforms(uniforms, plan.activePipelineView, layout, plan.pipelineViews.length, 1)
+  runtime.pipeline.render()
+  requestAnimationFrame(animate)
+}
+```
+
 [Install without R3F](/threejs-debug-view/guides/quick-start/#install-without-r3f) · [Headless Runtime](/threejs-debug-view/guides/headless-runtime/)
 
-## With R3F
+## Batteries-included R3F
 
-Import from **`threejs-debug-view/r3f`** for a batteries-included overlay: `DebugViewLayer`, Leva controls, and DOM labels/legends inside a `<Canvas>`.
+Import from **`threejs-debug-view/r3f`** for `DebugViewLayer` — built-in views, Leva controls, and DOM labels/legends inside a `<Canvas>`.
 
 ```tsx
 import { DebugViewLayer } from "threejs-debug-view/r3f"
@@ -49,7 +81,7 @@ Keep debug views behind a dev flag unless you intentionally expose them in produ
 
 ## Live demo
 
-Use the panel to switch views, layouts, and pane assignments. Try the **Overlap** and **Lights** scene tabs for measured overlap and estimated light overlap. On **Shader Complexity** or **Measured Overlap**, click the viewport to sample a pixel and move the legend marker.
+Use the panel to switch views, layouts, and pane assignments. Try the **Overlap** and **Lights** scene tabs for measured overlap and light overlap. On **Shader Complexity** or **Measured Overlap**, click the viewport to sample a pixel and move the legend marker.
 
 [Open the demo in a new tab](/threejs-debug-view/demo/)
 
@@ -64,10 +96,61 @@ Use the panel to switch views, layouts, and pane assignments. Try the **Overlap*
 The demo requires browser WebGPU support. When native WebGPU is unavailable, the app stops instead of falling back to WebGL.
 :::
 
-## What it does
+## Built-in views
 
-- **Built-in sources** — beauty, normals, depth, albedo, roughness, AO, opacity, emissive, wireframe, lighting-only, reflection-only, measured overlap, estimated light overlap, and shader cost.
-- **Render layouts** — single, overlay, split, diagonal breakdown, row, column, and grid.
-- **Explicit pane assignments** — fixed views, labels, per-pane cameras, and resolution scaling.
-- **Headless runtime** — same WebGPU pipeline without React.
-- **Custom TSL views** — add shader-specific inspection without forking the built-in list.
+`DEFAULT_DEBUG_VIEWS` ships sixteen named sources. Override and heatmap passes are **demand-driven** — they render only when the active view or layout needs them.
+
+| Source | Mode | What it shows |
+| --- | --- | --- |
+| `beauty` | passthrough | Final lit color |
+| `normal` | passthrough | View-space geometry normals |
+| `depth` | depth | View-space depth |
+| `albedo` | passthrough | Base color without lighting |
+| `materialNormal` | passthrough | Material normal map output |
+| `emissive` | passthrough | Emissive color |
+| `roughness` | passthrough | Packed scalar (`R`) |
+| `metallic` | passthrough | Packed scalar (`G`) |
+| `ao` | passthrough | Packed scalar (`B`); material AO, not SSAO |
+| `opacity` | passthrough | Packed scalar (`A`) |
+| `wireframe` | passthrough | Wireframe override pass |
+| `lightingOnly` | passthrough | Neutral lighting-only override |
+| `reflectionOnly` | passthrough | Reflection-only override |
+| `overdraw` | heatmap | Measured contributor layer count |
+| `lightComplexity` | heatmap | Light overlap (v1 analytic counter) |
+| `shaderCost` | heatmap | Shader-cost estimate (not native GPU counters) |
+
+See [Built-in Views](/threejs-debug-view/guides/built-in-views/) · [Overlap & light diagnostics](/threejs-debug-view/guides/overlap-and-light-diagnostics/) · [Shader cost](/threejs-debug-view/guides/shader-cost-heatmap/).
+
+## Custom debug view
+
+Add a TSL `node`, or use `createCustomDebugView()` with a stable `id` when React may recreate the node:
+
+```tsx
+import { float, vec4 } from "three/tsl"
+import { createCustomDebugView, DEFAULT_DEBUG_VIEWS } from "threejs-debug-view"
+import { DebugViews } from "threejs-debug-view/r3f"
+
+const fresnelView = createCustomDebugView({
+  id: "shader:fresnel",
+  label: "Fresnel",
+  node: vec4(float(1), float(0), float(0), float(1)),
+})
+
+<DebugViews views={[...DEFAULT_DEBUG_VIEWS, fresnelView]} />
+```
+
+[Custom Debug Views](/threejs-debug-view/guides/custom-debug-views/) · [Presentation routing](/threejs-debug-view/guides/render-modes/)
+
+## Quality gates
+
+| Gate | Command | What it checks |
+| --- | --- | --- |
+| Typecheck | `pnpm typecheck` | TypeScript across library + demo |
+| Unit tests | `pnpm test` | Vitest (render plans, views, helpers) |
+| Library build | `pnpm build` | ESM `dist/` + declaration emit |
+| npm surface | `pnpm pack:check` | Tarball contains only publishable files; bundle badge |
+| Docs build | `pnpm docs:build` | This Starlight site compiles |
+| Full verify | `pnpm verify` | All of the above |
+| E2E demo | `pnpm test:e2e` | Playwright against the Vite demo (WebGPU required) |
+
+[Deployment](/threejs-debug-view/reference/deployment/) · [Contributing gates in the repo README](https://github.com/tonyblu331/threejs-debug-view#quality-gates)

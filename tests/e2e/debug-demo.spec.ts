@@ -15,7 +15,7 @@ test.describe("debug demo controls", () => {
     await expect(page).toHaveURL(/scene=overdraw/)
     await expect(page).toHaveURL(/debugView=overdraw/)
     await expect(getSceneTab(page, "Overlap")).toHaveAttribute("aria-selected", "true")
-    await expectSelectedOption(page, "View", "Measured Overlap")
+    await expectSelectedOption(page, "View", "Overlap")
 
     await getSceneTab(page, "Main").click()
     await expect(page).toHaveURL(/\/$/)
@@ -27,7 +27,7 @@ test.describe("debug demo controls", () => {
     await expect(page).toHaveURL(/scene=overdraw/)
     await waitForDemoOrSkip(page)
     await expect(getSceneTab(page, "Overlap")).toHaveAttribute("aria-selected", "true")
-    await expectSelectedOption(page, "View", "Measured Overlap")
+    await expectSelectedOption(page, "View", "Overlap")
 
     await page.goForward()
     await expect(page).toHaveURL(/\/$/)
@@ -44,9 +44,9 @@ test.describe("debug demo controls", () => {
     await waitForDemoOrSkip(page)
 
     await expect(getSceneTab(page, "Overlap")).toHaveAttribute("aria-selected", "true")
-    await expectSelectedOption(page, "View", "Measured Overlap")
-    await expect(page.getByText("0 layers", { exact: true })).toBeVisible()
-    await expect(page.getByText("8+ layers", { exact: true })).toBeVisible()
+    await expectSelectedOption(page, "View", "Overlap")
+    await expect(page.getByText("none", { exact: true })).toBeVisible()
+    await expect(page.getByText("heavy", { exact: true })).toBeVisible()
 
     await getSceneTab(page, "Main").click()
     await expect(page).not.toHaveURL(/debugView=/)
@@ -145,7 +145,7 @@ test.describe("debug demo controls", () => {
     await page.goto("/")
     await waitForDemoOrSkip(page)
 
-    for (const tab of ["Main", "Overlap", "Lights"]) {
+    for (const tab of ["Main", "Overlap", "Overlap+Lights", "Lights"]) {
       await getSceneTab(page, tab).click()
       await expect(getSceneTab(page, tab)).toHaveAttribute("aria-selected", "true")
 
@@ -179,7 +179,7 @@ test.describe("debug demo controls", () => {
     expect(messages).toEqual([])
   })
 
-  test("lights scene initializes estimated light overlap view", async ({ page }) => {
+  test("lights scene initializes light overlap view", async ({ page }) => {
     const messages = collectRelevantConsoleMessages(page)
 
     await page.goto("/?scene=lights&debugView=lightComplexity")
@@ -188,9 +188,30 @@ test.describe("debug demo controls", () => {
     await expect(page).toHaveURL(/scene=lights/)
     await expect(page).toHaveURL(/debugView=lightComplexity/)
     await expect(getSceneTab(page, "Lights")).toHaveAttribute("aria-selected", "true")
-    await expectSelectedOption(page, "View", "Estimated Light Overlap")
-    await expect(page.getByText("0 lights", { exact: true })).toBeVisible()
-    await expect(page.getByText("8+ lights", { exact: true })).toBeVisible()
+    await expectSelectedOption(page, "View", "Light Overlap")
+    await expect(page.getByText("few", { exact: true })).toBeVisible()
+    await expect(page.getByText("many", { exact: true })).toBeVisible()
+    expect(messages).toEqual([])
+  })
+
+  test("overlap-lights scene exercises foliage overlap and light overlap", async ({ page }) => {
+    const messages = collectRelevantConsoleMessages(page)
+
+    await page.goto("/?scene=overlap-lights&debugView=lightComplexity")
+    await waitForDemoOrSkip(page)
+
+    await expect(page).toHaveURL(/scene=overlap-lights/)
+    await expect(page).toHaveURL(/debugView=lightComplexity/)
+    await expect(getSceneTab(page, "Overlap+Lights")).toHaveAttribute("aria-selected", "true")
+    await expectSelectedOption(page, "View", "Light Overlap")
+    await expect(page.getByText("few", { exact: true })).toBeVisible()
+    await expect(page.getByText("many", { exact: true })).toBeVisible()
+
+    await page.getByRole("combobox", { name: "View" }).selectOption({ label: "Overlap" })
+    await expectSelectedOption(page, "View", "Overlap")
+    await expect(page.getByText("none", { exact: true })).toBeVisible()
+    await expect(page.getByText("heavy", { exact: true })).toBeVisible()
+
     expect(messages).toEqual([])
   })
 })

@@ -68,7 +68,7 @@ export function App() {
       url.searchParams.delete("scene")
       url.searchParams.delete("debugView")
       setDebugViewSource(null)
-    } else if (variant === "lights") {
+    } else if (variant === "lights" || variant === "overlap-lights") {
       url.searchParams.set("scene", variant)
       url.searchParams.set("debugView", "lightComplexity")
       setDebugViewSource("lightComplexity")
@@ -164,6 +164,15 @@ function SceneTabs({
         Overlap
       </button>
       <button
+        aria-selected={active === "overlap-lights"}
+        onClick={() => onChange("overlap-lights")}
+        role="tab"
+        style={getSceneTabStyle(active === "overlap-lights")}
+        type="button"
+      >
+        Overlap+Lights
+      </button>
+      <button
         aria-selected={active === "lights"}
         onClick={() => onChange("lights")}
         role="tab"
@@ -179,6 +188,7 @@ function SceneTabs({
 function getSceneVariantFromUrl(): DemoSceneVariant {
   const scene = new URLSearchParams(window.location.search).get("scene")
   if (scene === "lights") return "lights"
+  if (scene === "overlap-lights" || scene === "overdraw-lights") return "overlap-lights"
   return scene === "overdraw" || scene === "overlap" ? "overdraw" : "main"
 }
 

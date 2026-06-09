@@ -69,6 +69,7 @@ export {
   visualizeDepth,
   visualizeGrayscale,
   visualizeHeatmap,
+  visualizeLightComplexityHeatmap,
   visualizeNormal,
 } from "./debug-views-tsl/visualize"
 

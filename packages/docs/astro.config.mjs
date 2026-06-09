@@ -4,10 +4,14 @@ import starlight from "@astrojs/starlight"
 export default defineConfig({
   site: "https://tonyblu331.github.io",
   base: "/threejs-debug-view",
+  markdown: {
+    // Astro 6.4+ no longer defaults GFM on for @astrojs/mdx@5 (Starlight 0.39).
+    gfm: true,
+  },
   integrations: [
     starlight({
       title: "threejs-debug-view",
-      description: "TSL debug views for Three.js WebGPU — headless runtime or batteries-included React Three Fiber overlay.",
+      description: "TSL debug views for Three.js WebGPU — headless runtime or batteries-included R3F.",
       logo: {
         src: "./src/assets/logo.svg",
         alt: "threejs-debug-view logo",

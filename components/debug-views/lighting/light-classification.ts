@@ -40,6 +40,10 @@ export function isExcludedGlobalLight(light: Light) {
   )
 }
 
+const positionScratch = new Vector3()
+const targetScratch = new Vector3()
+const directionScratch = new Vector3()
+
 export function collectCountableLights(root: { traverse: (cb: (obj: unknown) => void) => void }) {
   const lights: CountableLightSnapshot[] = []
 
@@ -49,15 +53,13 @@ export function collectCountableLights(root: { traverse: (cb: (obj: unknown) => 
       return
     }
 
-    light.updateWorldMatrix(true, false)
-    const position = new Vector3()
-    light.getWorldPosition(position)
+    light.getWorldPosition(positionScratch)
 
     if ((light as PointLight).isPointLight) {
       const point = light as PointLight
       lights.push({
         type: "point",
-        position: { x: position.x, y: position.y, z: position.z },
+        position: { x: positionScratch.x, y: positionScratch.y, z: positionScratch.z },
         distance: point.distance,
         decay: point.decay,
       })
@@ -66,17 +68,16 @@ export function collectCountableLights(root: { traverse: (cb: (obj: unknown) => 
 
     if ((light as SpotLight).isSpotLight) {
       const spot = light as SpotLight
-      const target = new Vector3()
-      spot.target.getWorldPosition(target)
-      const direction = target.clone().sub(position).normalize()
+      spot.target.getWorldPosition(targetScratch)
+      directionScratch.copy(targetScratch).sub(positionScratch).normalize()
 
       lights.push({
         type: "spot",
-        position: { x: position.x, y: position.y, z: position.z },
+        position: { x: positionScratch.x, y: positionScratch.y, z: positionScratch.z },
         distance: spot.distance,
         decay: spot.decay,
         angleCos: Math.cos(spot.angle * 0.5),
-        direction: { x: direction.x, y: direction.y, z: direction.z },
+        direction: { x: directionScratch.x, y: directionScratch.y, z: directionScratch.z },
       })
       return
     }
@@ -84,7 +85,7 @@ export function collectCountableLights(root: { traverse: (cb: (obj: unknown) => 
     const rect = light as RectAreaLight
     lights.push({
       type: "rectArea",
-      position: { x: position.x, y: position.y, z: position.z },
+      position: { x: positionScratch.x, y: positionScratch.y, z: positionScratch.z },
       distance: Math.max(rect.width, rect.height) * 1.5,
       decay: 1,
       width: rect.width,

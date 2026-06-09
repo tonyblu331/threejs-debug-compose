@@ -13,7 +13,6 @@ export const MATERIAL_DEBUG_VIEW_SOURCES = [
   "lightingOnly",
   "reflectionOnly",
   "overdraw",
-  "overdrawVisual",
   "lightComplexity",
   "shaderCost",
 ] as const satisfies readonly DebugViewSource[]
@@ -32,8 +31,8 @@ export const DEFAULT_DEBUG_VIEWS = [
   { label: "Wireframe", source: "wireframe", mode: "passthrough" },
   { label: "Lighting Only", source: "lightingOnly", mode: "passthrough" },
   { label: "Reflection Only", source: "reflectionOnly", mode: "passthrough" },
-  { label: "Measured Overlap", source: "overdraw", mode: "heatmap" },
-  { label: "Estimated Light Overlap", source: "lightComplexity", mode: "heatmap" },
+  { label: "Overlap", source: "overdraw", mode: "heatmap", scale: 2.5 },
+  { label: "Light Overlap", source: "lightComplexity", mode: "heatmap" },
   { label: "Shader Complexity", source: "shaderCost", mode: "heatmap" },
 ] as const satisfies readonly DebugView[]
 

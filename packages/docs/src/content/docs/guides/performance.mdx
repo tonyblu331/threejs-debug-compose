@@ -59,7 +59,7 @@ Some views are intentionally not folded into the cheap material-channel path:
 | `reflectionOnly` | Needs a reflective override material. |
 | `overdraw` | Measured overlap: depth prepass + blend counter subgraph. |
 | `overdrawVisual` | Optional additive overlap visualization (approx). |
-| `lightComplexity` | Estimated light overlap via `NodeMaterial` override pass. |
+| `lightComplexity` | Light overlap (v1 analytic counter via `NodeMaterial` override pass). |
 | `shaderCost` | Needs bucketed override materials based on material complexity signals. |
 
 These views render only when selected or visible in the active layout/viewport plan.

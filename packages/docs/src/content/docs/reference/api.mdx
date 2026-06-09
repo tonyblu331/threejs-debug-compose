@@ -55,7 +55,7 @@ Import from `threejs-debug-view/r3f`.
 
 ### `DebugViewLayer`
 
-Batteries-included overlay with default views and Leva controls.
+Batteries-included R3F layer with default views and Leva controls.
 
 ```tsx
 <DebugViewLayer />
@@ -80,7 +80,7 @@ Use `DebugViews` when your app owns controls, layout state, custom views, or vie
 
 ### `DebugViewLeva`
 
-Bundled Leva panel for debug overlay controls. Mount it yourself when the panel should live in a specific place in your app shell while sharing the same Leva store as `useDebugViewsControls`.
+Bundled Leva panel for debug view controls. Mount it yourself when the panel should live in a specific place in your app shell while sharing the same Leva store as `useDebugViewsControls`.
 
 ### `DebugViews`
 
@@ -161,8 +161,8 @@ Built-in `DebugViewSource` values:
 | `reflectionOnly` | Reflective override pass. |
 | `overdraw` | Measured overlap heatmap (contributor layer count). Click the viewport to sample integer layers from the pass buffer. |
 | `overdrawVisual` | Additive overlap visualization (approx). |
-| `lightComplexity` | Estimated light overlap heatmap (point/spot/rect lights; globals excluded). |
-| `shaderCost` | Shader-complexity heatmap from shader-unit buckets. Click the viewport in the bundled overlay to sample a pixel; the legend shows **shader complexity** when idle. |
+| `lightComplexity` | Light overlap heatmap (v1 analytic point/spot/rect counter; globals excluded). |
+| `shaderCost` | Shader-complexity heatmap from shader-unit buckets. Click the viewport in `DebugViewLayer` to sample a pixel; the legend shows **shader complexity** when idle. |
 
 `shaderCost` is not a native GPU instruction counter. Render-pass timing and overlap diagnostics are separate signals, not ALU/TEX/occupancy data.
 

@@ -6,6 +6,7 @@ import {
   Scene,
   SpotLight,
 } from "three"
+import { createLightComplexityHandle } from "./light-complexity-material"
 import {
   collectCountableLights,
   isCountableLight,
@@ -41,5 +42,26 @@ describe("light classification", () => {
     const axis = spotSnapshot.direction!
     const dot = toFragment.x * axis.x + toFragment.y * axis.y + toFragment.z * axis.z
     expect(dot).toBeGreaterThan(0)
+  })
+})
+
+describe("light complexity material", () => {
+  it("reuses one material and syncs light uniforms from the scene", () => {
+    const scene = new Scene()
+    const point = new PointLight(0xffffff, 1, 4)
+    point.position.set(1, 2, 3)
+    scene.add(point)
+
+    const handle = createLightComplexityHandle()
+    const material = handle.material
+
+    handle.syncScene(scene)
+    expect(handle.material).toBe(material)
+
+    point.position.set(4, 5, 6)
+    handle.syncScene(scene)
+
+    expect(handle.material).toBe(material)
+    handle.dispose()
   })
 })

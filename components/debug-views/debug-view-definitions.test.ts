@@ -24,7 +24,6 @@ describe("debug view definitions", () => {
       "lightingOnly",
       "reflectionOnly",
       "overdraw",
-      "overdrawVisual",
       "lightComplexity",
       "shaderCost",
     ])

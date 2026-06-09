@@ -36,7 +36,6 @@ import {
   LightComplexityLegendOverlay,
   OverdrawLegendOverlay,
   ShaderCostLegendOverlay,
-  type OverdrawLayerSample,
   type ShaderCostSample,
 } from "./debug-views-overlays"
 
@@ -162,7 +161,6 @@ function DebugViewsPipeline({
   )
   const webGpuRenderer = gl as unknown as WebGPURenderer
   const [shaderCostSample, setShaderCostSample] = useState<ShaderCostSample | null>(null)
-  const [overdrawSample, setOverdrawSample] = useState<OverdrawLayerSample | null>(null)
   const debugRuntimeRef = useDebugPipeline(
     !usesViewportRuntime,
     scene,
@@ -201,44 +199,6 @@ function DebugViewsPipeline({
       canvas.removeEventListener("pointerdown", handlePointerDown)
     }
   }, [gl, showsShaderCost])
-
-  useEffect(() => {
-    if (!showsOverdraw) {
-      setOverdrawSample(null)
-      return
-    }
-
-    const canvas = gl.domElement
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return
-
-      const { clientX, clientY } = event
-      const rect = canvas.getBoundingClientRect()
-      if (rect.width <= 0 || rect.height <= 0) return
-
-      const pixelX = ((clientX - rect.left) / rect.width) * canvas.width
-      const pixelY = ((clientY - rect.top) / rect.height) * canvas.height
-
-      requestAnimationFrame(() => {
-        void debugRuntimeRef.current?.readOverdrawLayerAt?.(pixelX, pixelY).then((layers) => {
-          if (layers == null) return
-
-          setOverdrawSample({
-            layers,
-            x: clientX,
-            y: clientY,
-          })
-        })
-      })
-    }
-
-    canvas.addEventListener("pointerdown", handlePointerDown)
-
-    return () => {
-      canvas.removeEventListener("pointerdown", handlePointerDown)
-    }
-  }, [debugRuntimeRef, gl, showsOverdraw])
 
   const viewportRuntimeRef = useDebugViewportPipelines(
     usesViewportRuntime,
@@ -285,7 +245,7 @@ function DebugViewsPipeline({
           viewportPlan={viewportPlan}
         />
       ) : null}
-      {showLegends && showsOverdraw ? <OverdrawLegendOverlay sample={overdrawSample} /> : null}
+      {showLegends && showsOverdraw ? <OverdrawLegendOverlay /> : null}
       {showLegends && showsLightComplexity ? <LightComplexityLegendOverlay /> : null}
       {showLegends && showsShaderCost ? (
         <ShaderCostLegendOverlay sample={shaderCostSample} />

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.14] - 2026-06-09
+
+### Added
+- **Light Overlap** (`lightComplexity`): analytic counter for point, spot, and rect lights.
+- Foliage and lights demo scenes for overlap diagnostics.
+
+### Changed
+- **Overlap** (`overdraw`) restored to the additive contributor pass; label and heatmap scale `2.5` unchanged from pre-0.2.13 behavior.
+- Removed measured-overdraw experiment, `overdrawVisual`, and internal planning artifacts from the published package and docs.
+
+### Fixed
+- Overlap view renders in WebGPU (measured counter pass produced a blank framebuffer).
+
 ## [0.2.13] - 2026-06-09
 
 ### Added

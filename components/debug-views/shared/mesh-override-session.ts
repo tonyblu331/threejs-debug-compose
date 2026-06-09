@@ -4,9 +4,11 @@ import {
   type SceneGraphRescanScheduler,
 } from "./scene-graph-cache"
 
+type SceneRoot = Scene | Object3D
+
 export interface MeshOverrideSession<TEntry extends MeshOverrideSessionEntry> {
-  prepare: (scene: Scene | Object3D) => void
-  apply: (scene: Scene | Object3D) => MeshOverrideRestore
+  prepare: (scene: SceneRoot) => void
+  apply: (scene: SceneRoot) => MeshOverrideRestore
   invalidate: () => void
   dispose: () => void
 }
@@ -20,7 +22,16 @@ export interface MeshOverrideSessionEntry {
   parent: unknown | null
 }
 
-type SceneRoot = Scene | Object3D
+function materialUnchanged<TEntry extends MeshOverrideSessionEntry & {
+  mesh: { material: unknown }
+  originalMaterial: unknown
+  overrideMaterial: unknown
+}>(entry: TEntry) {
+  return (
+    entry.mesh.material === entry.originalMaterial
+    || entry.mesh.material === entry.overrideMaterial
+  )
+}
 
 export function createMeshOverrideSession<TEntry extends MeshOverrideSessionEntry>(options: {
   rebuild: (scene: SceneRoot) => TEntry[]
@@ -36,10 +47,6 @@ export function createMeshOverrideSession<TEntry extends MeshOverrideSessionEntr
   const rebuild = (scene: SceneRoot) => {
     entries = options.rebuild(scene)
     scheduler.markRescanned()
-  }
-
-  const prepare = (scene: SceneRoot) => {
-    rebuild(scene)
   }
 
   const apply = (scene: SceneRoot): MeshOverrideRestore => {
@@ -74,7 +81,7 @@ export function createMeshOverrideSession<TEntry extends MeshOverrideSessionEntr
   }
 
   return {
-    prepare,
+    prepare: rebuild,
     apply,
     invalidate: scheduler.invalidate,
     dispose() {
@@ -83,3 +90,5 @@ export function createMeshOverrideSession<TEntry extends MeshOverrideSessionEntr
     },
   }
 }
+
+export { materialUnchanged }

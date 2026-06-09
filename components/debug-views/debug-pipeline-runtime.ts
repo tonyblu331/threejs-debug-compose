@@ -120,16 +120,12 @@ export function createDebugPipelineRuntime(
   }
 
   const overdrawOverride = plan.usesOverdrawPass ? createOverdrawOverride() : undefined
-  if (overdrawOverride) {
-    overdrawOverride.prepare(scene)
-  }
+  overdrawOverride?.prepare(scene)
   const overdrawPass = plan.usesOverdrawPass
     ? createOverdrawPass(scene, camera, resolutionScale, overdrawOverride)
     : undefined
   const shaderCostOverride = plan.usesShaderCostPass ? createShaderCostOverride() : undefined
-  if (shaderCostOverride) {
-    shaderCostOverride.prepare(scene)
-  }
+  shaderCostOverride?.prepare(scene)
   const shaderCostPass = plan.usesShaderCostPass
     ? createShaderCostPass(scene, camera, resolutionScale, shaderCostOverride)
     : undefined

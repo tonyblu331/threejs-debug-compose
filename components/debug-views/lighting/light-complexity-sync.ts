@@ -11,9 +11,9 @@ import {
   type CountableLightSnapshot,
 } from "./light-classification"
 
-const LIGHT_TYPE_POINT = 0
-const LIGHT_TYPE_SPOT = 1
-const LIGHT_TYPE_RECT = 2
+export const LIGHT_TYPE_POINT = 0
+export const LIGHT_TYPE_SPOT = 1
+export const LIGHT_TYPE_RECT = 2
 
 export interface LightComplexitySlotUniforms {
   position: { value: { set: (x: number, y: number, z: number) => void } }
@@ -29,7 +29,7 @@ interface TrackedLight {
   target: SpotLight["target"] | null
 }
 
-interface SlotFingerprint {
+interface LightSlotState {
   active: boolean
   px: number
   py: number
@@ -46,6 +46,8 @@ interface SlotFingerprint {
 const positionScratch = new Vector3()
 const targetScratch = new Vector3()
 const directionScratch = new Vector3()
+const probeState = createEmptyLightSlotState()
+const rescanParentsScratch: { parent: unknown | null }[] = []
 
 export interface LightComplexitySync {
   syncScene: (root: { traverse: (cb: (obj: unknown) => void) => void }) => void
@@ -59,7 +61,7 @@ export function createLightComplexitySync(
   slots: readonly LightComplexitySlotUniforms[],
   maxDisplayLights = DEFAULT_MAX_DISPLAY_LIGHTS,
 ): LightComplexitySync {
-  const fingerprints: SlotFingerprint[] = Array.from({ length: maxDisplayLights }, createEmptyFingerprint)
+  const fingerprints: LightSlotState[] = Array.from({ length: maxDisplayLights }, createEmptyLightSlotState)
   let trackedLights: TrackedLight[] = []
   const scheduler = createSceneGraphRescanScheduler()
 
@@ -75,28 +77,25 @@ export function createLightComplexitySync(
       return true
     }
 
-    let dirty = false
-
     for (let index = 0; index < maxDisplayLights; index += 1) {
       const tracked = trackedLights[index]
+      const fingerprint = fingerprints[index]!
+
       if (!tracked || tracked.light.parent == null) {
-        if (fingerprints[index]!.active) {
-          dirty = true
+        if (fingerprint.active) {
+          writeAllSlots(slots, trackedLights, fingerprints)
+          return true
         }
         continue
       }
 
-      if (fingerprintChanged(tracked, fingerprints[index]!)) {
-        dirty = true
+      if (lightStateChanged(tracked, fingerprint)) {
+        writeAllSlots(slots, trackedLights, fingerprints)
+        return true
       }
     }
 
-    if (!dirty) {
-      return false
-    }
-
-    writeAllSlots(slots, trackedLights, fingerprints)
-    return true
+    return false
   }
 
   const syncLights = (lights: readonly CountableLightSnapshot[]) => {
@@ -108,13 +107,14 @@ export function createLightComplexitySync(
       const fingerprint = fingerprints[index]!
 
       if (!light) {
-        clearFingerprint(fingerprint)
+        applyStateToFingerprint(fingerprint, createEmptyLightSlotState())
         clearSlot(slots[index]!)
         continue
       }
 
-      writeSnapshotToSlot(slots[index]!, light)
-      writeSnapshotToFingerprint(fingerprint, light)
+      const state = resolveSnapshotLight(light)
+      applyStateToSlot(slots[index]!, state)
+      applyStateToFingerprint(fingerprint, state)
     }
   }
 
@@ -126,7 +126,7 @@ export function createLightComplexitySync(
       trackedLights = []
       scheduler.invalidate()
       for (const fingerprint of fingerprints) {
-        clearFingerprint(fingerprint)
+        applyStateToFingerprint(fingerprint, createEmptyLightSlotState())
       }
     },
     dispose() {
@@ -136,7 +136,11 @@ export function createLightComplexitySync(
   }
 
   function shouldRescan(_root: { traverse: (cb: (obj: unknown) => void) => void }) {
-    return scheduler.shouldRescan(trackedLights.map((tracked) => ({ parent: tracked.light.parent })))
+    rescanParentsScratch.length = 0
+    for (const tracked of trackedLights) {
+      rescanParentsScratch.push({ parent: tracked.light.parent })
+    }
+    return scheduler.shouldRescan(rescanParentsScratch)
   }
 
   function rescanTrackedLights(root: { traverse: (cb: (obj: unknown) => void) => void }) {
@@ -153,7 +157,7 @@ export function createLightComplexitySync(
 function writeAllSlots(
   slots: readonly LightComplexitySlotUniforms[],
   trackedLights: readonly TrackedLight[],
-  fingerprints: SlotFingerprint[],
+  fingerprints: LightSlotState[],
 ) {
   for (let index = 0; index < slots.length; index += 1) {
     const slot = slots[index]!
@@ -161,22 +165,23 @@ function writeAllSlots(
     const tracked = trackedLights[index]
 
     if (!tracked || tracked.light.parent == null) {
-      clearFingerprint(fingerprint)
+      applyStateToFingerprint(fingerprint, createEmptyLightSlotState())
       clearSlot(slot)
       continue
     }
 
-    writeTrackedLightToSlot(slot, tracked)
-    writeTrackedLightToFingerprint(tracked, fingerprint)
+    const state = resolveTrackedLight(tracked)
+    applyStateToSlot(slot, state)
+    applyStateToFingerprint(fingerprint, state)
   }
 }
 
-function fingerprintChanged(tracked: TrackedLight, fingerprint: SlotFingerprint) {
-  writeTrackedLightToFingerprint(tracked, probeFingerprint)
-  return !fingerprintsEqual(probeFingerprint, fingerprint)
+function lightStateChanged(tracked: TrackedLight, fingerprint: LightSlotState) {
+  resolveTrackedLight(tracked, probeState)
+  return !lightSlotStatesEqual(probeState, fingerprint)
 }
 
-function fingerprintsEqual(a: SlotFingerprint, b: SlotFingerprint) {
+function lightSlotStatesEqual(a: LightSlotState, b: LightSlotState) {
   return (
     a.active === b.active
     && a.px === b.px
@@ -192,19 +197,25 @@ function fingerprintsEqual(a: SlotFingerprint, b: SlotFingerprint) {
   )
 }
 
-function writeTrackedLightToSlot(slot: LightComplexitySlotUniforms, tracked: TrackedLight) {
+function resolveTrackedLight(tracked: TrackedLight, out = createEmptyLightSlotState()): LightSlotState {
   const light = tracked.light
 
   light.getWorldPosition(positionScratch)
-  slot.position.value.set(positionScratch.x, positionScratch.y, positionScratch.z)
+  out.active = true
+  out.px = positionScratch.x
+  out.py = positionScratch.y
+  out.pz = positionScratch.z
 
   if ((light as PointLight).isPointLight) {
     const point = light as PointLight
-    slot.lightType.value = LIGHT_TYPE_POINT
-    slot.range.value = point.distance > 0 ? point.distance : 1_000
-    slot.angleCos.value = -1
-    slot.rectRange.value = 0
-    return
+    out.lightType = LIGHT_TYPE_POINT
+    out.range = point.distance > 0 ? point.distance : 1_000
+    out.dx = 0
+    out.dy = 0
+    out.dz = -1
+    out.angleCos = -1
+    out.rectRange = 0
+    return out
   }
 
   if ((light as SpotLight).isSpotLight) {
@@ -212,146 +223,89 @@ function writeTrackedLightToSlot(slot: LightComplexitySlotUniforms, tracked: Tra
     tracked.target?.getWorldPosition(targetScratch)
     directionScratch.copy(targetScratch).sub(positionScratch).normalize()
 
-    slot.lightType.value = LIGHT_TYPE_SPOT
-    slot.range.value = spot.distance > 0 ? spot.distance : 1_000
-    slot.direction.value.set(directionScratch.x, directionScratch.y, directionScratch.z)
-    slot.angleCos.value = Math.cos(spot.angle * 0.5)
-    slot.rectRange.value = 0
-    return
-  }
-
-  const rect = light as RectAreaLight
-  slot.lightType.value = LIGHT_TYPE_RECT
-  slot.range.value = Math.max(rect.width, rect.height) * 1.5
-  slot.rectRange.value = Math.max(rect.width, rect.height) * 1.5
-  slot.angleCos.value = -1
-}
-
-function writeTrackedLightToFingerprint(tracked: TrackedLight, fingerprint: SlotFingerprint) {
-  const light = tracked.light
-
-  light.getWorldPosition(positionScratch)
-  fingerprint.active = true
-  fingerprint.px = positionScratch.x
-  fingerprint.py = positionScratch.y
-  fingerprint.pz = positionScratch.z
-
-  if ((light as PointLight).isPointLight) {
-    const point = light as PointLight
-    fingerprint.lightType = LIGHT_TYPE_POINT
-    fingerprint.range = point.distance > 0 ? point.distance : 1_000
-    fingerprint.dx = 0
-    fingerprint.dy = 0
-    fingerprint.dz = -1
-    fingerprint.angleCos = -1
-    fingerprint.rectRange = 0
-    return
-  }
-
-  if ((light as SpotLight).isSpotLight) {
-    const spot = light as SpotLight
-    tracked.target?.getWorldPosition(targetScratch)
-    directionScratch.copy(targetScratch).sub(positionScratch).normalize()
-
-    fingerprint.lightType = LIGHT_TYPE_SPOT
-    fingerprint.range = spot.distance > 0 ? spot.distance : 1_000
-    fingerprint.dx = directionScratch.x
-    fingerprint.dy = directionScratch.y
-    fingerprint.dz = directionScratch.z
-    fingerprint.angleCos = Math.cos(spot.angle * 0.5)
-    fingerprint.rectRange = 0
-    return
+    out.lightType = LIGHT_TYPE_SPOT
+    out.range = spot.distance > 0 ? spot.distance : 1_000
+    out.dx = directionScratch.x
+    out.dy = directionScratch.y
+    out.dz = directionScratch.z
+    out.angleCos = Math.cos(spot.angle * 0.5)
+    out.rectRange = 0
+    return out
   }
 
   const rect = light as RectAreaLight
   const rectRange = Math.max(rect.width, rect.height) * 1.5
-  fingerprint.lightType = LIGHT_TYPE_RECT
-  fingerprint.range = rectRange
-  fingerprint.dx = 0
-  fingerprint.dy = 0
-  fingerprint.dz = -1
-  fingerprint.angleCos = -1
-  fingerprint.rectRange = rectRange
+  out.lightType = LIGHT_TYPE_RECT
+  out.range = rectRange
+  out.dx = 0
+  out.dy = 0
+  out.dz = -1
+  out.angleCos = -1
+  out.rectRange = rectRange
+  return out
 }
 
-function writeSnapshotToSlot(slot: LightComplexitySlotUniforms, light: CountableLightSnapshot) {
-  slot.position.value.set(light.position.x, light.position.y, light.position.z)
-  slot.range.value = light.distance > 0 ? light.distance : 1_000
+function resolveSnapshotLight(light: CountableLightSnapshot): LightSlotState {
+  const state = createEmptyLightSlotState()
+  state.active = true
+  state.px = light.position.x
+  state.py = light.position.y
+  state.pz = light.position.z
+  state.range = light.distance > 0 ? light.distance : 1_000
 
   if (light.type === "spot" && light.direction && light.angleCos != null) {
-    slot.lightType.value = LIGHT_TYPE_SPOT
-    slot.direction.value.set(light.direction.x, light.direction.y, light.direction.z)
-    slot.angleCos.value = light.angleCos
-    slot.rectRange.value = 0
-    return
+    state.lightType = LIGHT_TYPE_SPOT
+    state.dx = light.direction.x
+    state.dy = light.direction.y
+    state.dz = light.direction.z
+    state.angleCos = light.angleCos
+    return state
   }
 
   if (light.type === "rectArea" && light.width && light.height) {
-    slot.lightType.value = LIGHT_TYPE_RECT
-    slot.rectRange.value = Math.max(light.width, light.height) * 1.5
-    slot.angleCos.value = -1
-    return
+    state.lightType = LIGHT_TYPE_RECT
+    state.rectRange = Math.max(light.width, light.height) * 1.5
+    state.range = state.rectRange
+    return state
   }
 
-  slot.lightType.value = LIGHT_TYPE_POINT
-  slot.angleCos.value = -1
-  slot.rectRange.value = 0
+  state.lightType = LIGHT_TYPE_POINT
+  return state
 }
 
-function writeSnapshotToFingerprint(fingerprint: SlotFingerprint, light: CountableLightSnapshot) {
-  fingerprint.active = true
-  fingerprint.px = light.position.x
-  fingerprint.py = light.position.y
-  fingerprint.pz = light.position.z
-  fingerprint.range = light.distance > 0 ? light.distance : 1_000
-
-  if (light.type === "spot" && light.direction && light.angleCos != null) {
-    fingerprint.lightType = LIGHT_TYPE_SPOT
-    fingerprint.dx = light.direction.x
-    fingerprint.dy = light.direction.y
-    fingerprint.dz = light.direction.z
-    fingerprint.angleCos = light.angleCos
-    fingerprint.rectRange = 0
+function applyStateToSlot(slot: LightComplexitySlotUniforms, state: LightSlotState) {
+  if (!state.active) {
+    clearSlot(slot)
     return
   }
 
-  if (light.type === "rectArea" && light.width && light.height) {
-    fingerprint.lightType = LIGHT_TYPE_RECT
-    fingerprint.rectRange = Math.max(light.width, light.height) * 1.5
-    fingerprint.dx = 0
-    fingerprint.dy = 0
-    fingerprint.dz = -1
-    fingerprint.angleCos = -1
-    return
-  }
+  slot.position.value.set(state.px, state.py, state.pz)
+  slot.range.value = state.range
+  slot.lightType.value = state.lightType
+  slot.direction.value.set(state.dx, state.dy, state.dz)
+  slot.angleCos.value = state.angleCos
+  slot.rectRange.value = state.rectRange
+}
 
-  fingerprint.lightType = LIGHT_TYPE_POINT
-  fingerprint.dx = 0
-  fingerprint.dy = 0
-  fingerprint.dz = -1
-  fingerprint.angleCos = -1
-  fingerprint.rectRange = 0
+function applyStateToFingerprint(fingerprint: LightSlotState, state: LightSlotState) {
+  fingerprint.active = state.active
+  fingerprint.px = state.px
+  fingerprint.py = state.py
+  fingerprint.pz = state.pz
+  fingerprint.range = state.range
+  fingerprint.lightType = state.lightType
+  fingerprint.dx = state.dx
+  fingerprint.dy = state.dy
+  fingerprint.dz = state.dz
+  fingerprint.angleCos = state.angleCos
+  fingerprint.rectRange = state.rectRange
 }
 
 function clearSlot(slot: LightComplexitySlotUniforms) {
   slot.range.value = 0
 }
 
-function clearFingerprint(fingerprint: SlotFingerprint) {
-  fingerprint.active = false
-  fingerprint.px = 0
-  fingerprint.py = 0
-  fingerprint.pz = 0
-  fingerprint.range = 0
-  fingerprint.lightType = LIGHT_TYPE_POINT
-  fingerprint.dx = 0
-  fingerprint.dy = 0
-  fingerprint.dz = -1
-  fingerprint.angleCos = -1
-  fingerprint.rectRange = 0
-}
-
-function createEmptyFingerprint(): SlotFingerprint {
+function createEmptyLightSlotState(): LightSlotState {
   return {
     active: false,
     px: 0,
@@ -366,5 +320,3 @@ function createEmptyFingerprint(): SlotFingerprint {
     rectRange: 0,
   }
 }
-
-const probeFingerprint = createEmptyFingerprint()

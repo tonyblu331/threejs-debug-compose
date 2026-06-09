@@ -10,6 +10,7 @@ import {
 import { createMaterialCostCache, type MaterialCostCache } from "./material-cost"
 import {
   createMeshOverrideSession,
+  materialUnchanged,
   type MeshOverrideSessionEntry,
 } from "../shared/mesh-override-session"
 
@@ -36,7 +37,6 @@ export interface ShaderCostRestore {
 
 type MeshMaterial = Material | Material[]
 type CoverageMaterialCache = Map<string, MeshBasicMaterial>
-type SceneRoot = Scene | Object3D
 
 interface ShaderCostCacheEntry extends MeshOverrideSessionEntry {
   mesh: Mesh
@@ -70,10 +70,7 @@ export function createShaderCostOverride(
       return entries
     },
     refreshEntry(entry) {
-      if (
-        entry.mesh.material === entry.originalMaterial
-        || entry.mesh.material === entry.overrideMaterial
-      ) {
+      if (materialUnchanged(entry)) {
         return
       }
 

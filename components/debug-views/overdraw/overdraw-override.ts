@@ -9,6 +9,7 @@ import {
 } from "three"
 import {
   createMeshOverrideSession,
+  materialUnchanged,
   type MeshOverrideSessionEntry,
 } from "../shared/mesh-override-session"
 
@@ -25,7 +26,6 @@ export interface OverdrawRestore {
 }
 
 type MeshMaterial = Material | Material[]
-type SceneRoot = Scene | Object3D
 
 interface OverdrawCacheEntry extends MeshOverrideSessionEntry {
   mesh: Mesh
@@ -61,10 +61,7 @@ export function createOverdrawOverride(): OverdrawOverride {
       return entries
     },
     refreshEntry(entry) {
-      if (
-        entry.mesh.material === entry.originalMaterial
-        || entry.mesh.material === entry.overrideMaterial
-      ) {
+      if (materialUnchanged(entry)) {
         return
       }
 

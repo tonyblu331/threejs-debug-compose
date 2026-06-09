@@ -1,12 +1,12 @@
 import { NodeMaterial } from "three/webgpu"
 import { float, Fn, length, positionWorld, uniform, vec3, vec4 } from "three/tsl"
-import { DEFAULT_MAX_DISPLAY_LIGHTS } from "./light-classification"
-import { createLightComplexitySync } from "./light-complexity-sync"
-import type { CountableLightSnapshot } from "./light-classification"
-
-const LIGHT_TYPE_POINT = 0
-const LIGHT_TYPE_SPOT = 1
-const LIGHT_TYPE_RECT = 2
+import { DEFAULT_MAX_DISPLAY_LIGHTS, type CountableLightSnapshot } from "./light-classification"
+import {
+  createLightComplexitySync,
+  LIGHT_TYPE_POINT,
+  LIGHT_TYPE_SPOT,
+  type LightComplexitySlotUniforms,
+} from "./light-complexity-sync"
 
 export interface LightComplexityHandle {
   material: NodeMaterial
@@ -69,7 +69,7 @@ export function createLightComplexityHandle(
   })()
 
   const sync = createLightComplexitySync(
-    slots as Parameters<typeof createLightComplexitySync>[0],
+    slots as unknown as LightComplexitySlotUniforms[],
     maxDisplayLights,
   )
 
